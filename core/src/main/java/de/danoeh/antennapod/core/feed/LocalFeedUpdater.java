@@ -30,7 +30,7 @@ import de.danoeh.antennapod.core.R;
 import de.danoeh.antennapod.core.util.FastDocumentFile;
 import de.danoeh.antennapod.model.MediaMetadataRetrieverCompat;
 import de.danoeh.antennapod.model.download.DownloadResult;
-import de.danoeh.antennapod.core.storage.DBReader;
+import de.danoeh.antennapod.storage.database.DBReader;
 import de.danoeh.antennapod.core.storage.DBTasks;
 import de.danoeh.antennapod.core.storage.DBWriter;
 import de.danoeh.antennapod.parser.feed.util.DateUtils;
@@ -54,7 +54,7 @@ public class LocalFeedUpdater {
     public static void updateFeed(Feed feed, Context context,
                                   @Nullable UpdaterProgressListener updaterProgressListener) {
         try {
-            String uriString = feed.getDownload_url().replace(Feed.PREFIX_LOCAL_FOLDER, "");
+            String uriString = feed.getDownloadUrl().replace(Feed.PREFIX_LOCAL_FOLDER, "");
             DocumentFile documentFolder = DocumentFile.fromTreeUri(context, Uri.parse(uriString));
             if (documentFolder == null) {
                 throw new IOException("Unable to retrieve document tree. "
@@ -178,7 +178,7 @@ public class LocalFeedUpdater {
 
         for (FeedItem existingItem : feed.getItems()) {
             if (existingItem.getMedia() != null
-                    && existingItem.getMedia().getDownload_url().equals(file.getUri().toString())
+                    && existingItem.getMedia().getDownloadUrl().equals(file.getUri().toString())
                     && file.getLength() == existingItem.getMedia().getSize()) {
                 // We found an old file that we already scanned. Re-use metadata.
                 item.updateFromOther(existingItem);
@@ -242,8 +242,8 @@ public class LocalFeedUpdater {
     }
 
     private static void reportError(Feed feed, String reasonDetailed) {
-        DownloadResult status = new DownloadResult(feed, feed.getTitle(),
-                DownloadError.ERROR_IO_ERROR, false, reasonDetailed);
+        DownloadResult status = new DownloadResult(feed.getTitle(), feed.getId(),
+                Feed.FEEDFILETYPE_FEED, false, DownloadError.ERROR_IO_ERROR, reasonDetailed);
         DBWriter.addDownloadStatus(status);
         DBWriter.setFeedLastUpdateFailed(feed.getId(), true);
     }
@@ -252,7 +252,8 @@ public class LocalFeedUpdater {
      * Reports a successful download status.
      */
     private static void reportSuccess(Feed feed) {
-        DownloadResult status = new DownloadResult(feed, feed.getTitle(), DownloadError.SUCCESS, true, null);
+        DownloadResult status = new DownloadResult(feed.getTitle(), feed.getId(),
+                Feed.FEEDFILETYPE_FEED, true, DownloadError.SUCCESS, null);
         DBWriter.addDownloadStatus(status);
         DBWriter.setFeedLastUpdateFailed(feed.getId(), false);
     }

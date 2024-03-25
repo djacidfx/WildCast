@@ -18,7 +18,7 @@ import de.danoeh.antennapod.core.ClientConfig;
 import de.danoeh.antennapod.model.feed.Feed;
 import de.danoeh.antennapod.model.feed.FeedItem;
 import de.danoeh.antennapod.model.feed.FeedMedia;
-import de.danoeh.antennapod.core.preferences.PlaybackPreferences;
+import de.danoeh.antennapod.storage.preferences.PlaybackPreferences;
 import de.danoeh.antennapod.storage.preferences.UserPreferences;
 
 import de.danoeh.antennapod.storage.database.PodDBAdapter;
@@ -211,7 +211,7 @@ public class DbCleanupTests {
         FeedMedia m = feeds.get(0).getItems().get(0).getMedia();
         //noinspection ConstantConditions
         m.setDownloaded(true);
-        m.setFile_url("file");
+        m.setLocalFileUrl("file");
         PodDBAdapter adapter = PodDBAdapter.getInstance();
         adapter.open();
         adapter.setMedia(m);

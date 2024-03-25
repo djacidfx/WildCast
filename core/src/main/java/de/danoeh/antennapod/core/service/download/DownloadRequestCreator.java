@@ -2,11 +2,11 @@ package de.danoeh.antennapod.core.service.download;
 
 import android.util.Log;
 import android.webkit.URLUtil;
+import de.danoeh.antennapod.net.download.serviceinterface.DownloadRequestBuilder;
 import de.danoeh.antennapod.storage.preferences.UserPreferences;
 import de.danoeh.antennapod.core.util.FileNameGenerator;
 import de.danoeh.antennapod.model.feed.Feed;
 import de.danoeh.antennapod.model.feed.FeedMedia;
-import de.danoeh.antennapod.net.download.serviceinterface.DownloadRequest;
 import org.apache.commons.io.FilenameUtils;
 
 import java.io.File;
@@ -19,27 +19,27 @@ public class DownloadRequestCreator {
     private static final String FEED_DOWNLOADPATH = "cache/";
     private static final String MEDIA_DOWNLOADPATH = "media/";
 
-    public static DownloadRequest.Builder create(Feed feed) {
+    public static DownloadRequestBuilder create(Feed feed) {
         File dest = new File(getFeedfilePath(), getFeedfileName(feed));
         if (dest.exists()) {
             dest.delete();
         }
-        Log.d(TAG, "Requesting download of url " + feed.getDownload_url());
+        Log.d(TAG, "Requesting download of url " + feed.getDownloadUrl());
 
         String username = (feed.getPreferences() != null) ? feed.getPreferences().getUsername() : null;
         String password = (feed.getPreferences() != null) ? feed.getPreferences().getPassword() : null;
 
-        return new DownloadRequest.Builder(dest.toString(), feed)
+        return new DownloadRequestBuilder(dest.toString(), feed)
                 .withAuthentication(username, password)
-                .lastModified(feed.getLastUpdate());
+                .lastModified(feed.getLastModified());
     }
 
-    public static DownloadRequest.Builder create(FeedMedia media) {
+    public static DownloadRequestBuilder create(FeedMedia media) {
         final boolean partiallyDownloadedFileExists =
-                media.getFile_url() != null && new File(media.getFile_url()).exists();
+                media.getLocalFileUrl() != null && new File(media.getLocalFileUrl()).exists();
         File dest;
         if (partiallyDownloadedFileExists) {
-            dest = new File(media.getFile_url());
+            dest = new File(media.getLocalFileUrl());
         } else {
             dest = new File(getMediafilePath(media), getMediafilename(media));
         }
@@ -47,14 +47,14 @@ public class DownloadRequestCreator {
         if (dest.exists() && !partiallyDownloadedFileExists) {
             dest = findUnusedFile(dest);
         }
-        Log.d(TAG, "Requesting download of url " + media.getDownload_url());
+        Log.d(TAG, "Requesting download of url " + media.getDownloadUrl());
 
         String username = (media.getItem().getFeed().getPreferences() != null)
                 ? media.getItem().getFeed().getPreferences().getUsername() : null;
         String password = (media.getItem().getFeed().getPreferences() != null)
                 ? media.getItem().getFeed().getPreferences().getPassword() : null;
 
-        return new DownloadRequest.Builder(dest.toString(), media)
+        return new DownloadRequestBuilder(dest.toString(), media)
                 .withAuthentication(username, password);
     }
 
@@ -83,7 +83,7 @@ public class DownloadRequestCreator {
     }
 
     private static String getFeedfileName(Feed feed) {
-        String filename = feed.getDownload_url();
+        String filename = feed.getDownloadUrl();
         if (feed.getTitle() != null && !feed.getTitle().isEmpty()) {
             filename = feed.getTitle();
         }
@@ -105,7 +105,7 @@ public class DownloadRequestCreator {
             titleBaseFilename = FileNameGenerator.generateFileName(title);
         }
 
-        String urlBaseFilename = URLUtil.guessFileName(media.getDownload_url(), null, media.getMime_type());
+        String urlBaseFilename = URLUtil.guessFileName(media.getDownloadUrl(), null, media.getMimeType());
 
         String baseFilename;
         if (!titleBaseFilename.equals("")) {

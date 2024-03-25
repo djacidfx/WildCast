@@ -6,9 +6,9 @@ import androidx.test.annotation.UiThreadTest;
 import androidx.test.filters.LargeTest;
 
 import de.danoeh.antennapod.event.playback.SleepTimerUpdatedEvent;
-import de.danoeh.antennapod.core.preferences.SleepTimerPreferences;
-import de.danoeh.antennapod.core.widget.WidgetUpdater;
+import de.danoeh.antennapod.storage.preferences.SleepTimerPreferences;
 import de.danoeh.antennapod.storage.database.PodDBAdapter;
+import de.danoeh.antennapod.ui.widget.WidgetUpdater;
 import org.greenrobot.eventbus.EventBus;
 import org.greenrobot.eventbus.Subscribe;
 import org.junit.After;
@@ -63,7 +63,8 @@ public class PlaybackServiceTaskManagerTest {
 
     private List<FeedItem> writeTestQueue(String pref) {
         final int NUM_ITEMS = 10;
-        Feed f = new Feed(0, null, "title", "link", "d", null, null, null, null, "id", null, "null", "url", false);
+        Feed f = new Feed(0, null, "title", "link", "d", null, null, null, null, "id",
+                null, "null", "url", System.currentTimeMillis());
         f.setItems(new ArrayList<>());
         for (int i = 0; i < NUM_ITEMS; i++) {
             f.getItems().add(new FeedItem(0, pref + i, pref + i, "link", new Date(), FeedItem.PLAYED, f));

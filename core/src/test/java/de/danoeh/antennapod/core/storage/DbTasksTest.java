@@ -5,6 +5,7 @@ import android.content.Context;
 
 import androidx.test.platform.app.InstrumentationRegistry;
 
+import de.danoeh.antennapod.storage.database.DBReader;
 import de.danoeh.antennapod.storage.database.PodDBAdapter;
 import org.junit.After;
 import org.junit.Before;
@@ -22,7 +23,7 @@ import de.danoeh.antennapod.core.ClientConfig;
 import de.danoeh.antennapod.model.feed.Feed;
 import de.danoeh.antennapod.model.feed.FeedItem;
 import de.danoeh.antennapod.model.feed.FeedMedia;
-import de.danoeh.antennapod.core.preferences.PlaybackPreferences;
+import de.danoeh.antennapod.storage.preferences.PlaybackPreferences;
 import de.danoeh.antennapod.storage.preferences.UserPreferences;
 
 import static java.util.Collections.singletonList;
@@ -252,25 +253,4 @@ public class DbTasksTest {
             lastDate = item.getPubDate();
         }
     }
-
-    private Feed createSavedFeed(String title, int numFeedItems) {
-        final Feed feed = new Feed("url", null, title);
-
-        if (numFeedItems > 0) {
-            List<FeedItem> items = new ArrayList<>(numFeedItems);
-            for (int i = 1; i <= numFeedItems; i++) {
-                FeedItem item = new FeedItem(0, "item " + i + " of " + title, "id" + title + i, "link",
-                        new Date(), FeedItem.UNPLAYED, feed);
-                items.add(item);
-            }
-            feed.setItems(items);
-        }
-
-        PodDBAdapter adapter = PodDBAdapter.getInstance();
-        adapter.open();
-        adapter.setCompleteFeed(feed);
-        adapter.close();
-        return feed;
-    }
-
 }

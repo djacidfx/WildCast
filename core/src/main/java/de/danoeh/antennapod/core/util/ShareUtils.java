@@ -9,6 +9,7 @@ import androidx.annotation.NonNull;
 import androidx.core.app.ShareCompat;
 import androidx.core.content.FileProvider;
 
+import de.danoeh.antennapod.ui.common.Converter;
 import java.io.File;
 import java.net.URLEncoder;
 
@@ -37,7 +38,7 @@ public class ShareUtils {
         String text = feed.getTitle()
                 + "\n\n"
                 + "https://antennapod.org/deeplink/subscribe/?url="
-                + URLEncoder.encode(feed.getDownload_url())
+                + URLEncoder.encode(feed.getDownloadUrl())
                 + "&title="
                 + URLEncoder.encode(feed.getTitle());
         shareLink(context, text);
@@ -48,7 +49,7 @@ public class ShareUtils {
     }
 
     public static void shareMediaDownloadLink(Context context, FeedMedia media) {
-        shareLink(context, media.getDownload_url());
+        shareLink(context, media.getDownloadUrl());
     }
 
     public static void shareFeedItemLinkWithDownloadLink(Context context, FeedItem item, boolean withPosition) {
@@ -65,9 +66,9 @@ public class ShareUtils {
             text += FeedItemUtil.getLinkWithFallback(item);
         }
 
-        if (item.getMedia() != null && item.getMedia().getDownload_url() != null) {
+        if (item.getMedia() != null && item.getMedia().getDownloadUrl() != null) {
             text += "\n\n" + context.getResources().getString(R.string.share_dialog_media_file_label) + ": ";
-            text +=  item.getMedia().getDownload_url();
+            text +=  item.getMedia().getDownloadUrl();
             if (withPosition) {
                 text += "#t=" + pos / 1000;
             }
@@ -77,10 +78,10 @@ public class ShareUtils {
 
     public static void shareFeedItemFile(Context context, FeedMedia media) {
         Uri fileUri = FileProvider.getUriForFile(context, context.getString(R.string.provider_authority),
-                new File(media.getLocalMediaUrl()));
+                new File(media.getLocalFileUrl()));
 
         new ShareCompat.IntentBuilder(context)
-                .setType(media.getMime_type())
+                .setType(media.getMimeType())
                 .addStream(fileUri)
                 .setChooserTitle(R.string.share_file_label)
                 .startChooser();

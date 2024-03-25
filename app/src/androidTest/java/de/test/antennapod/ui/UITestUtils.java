@@ -123,7 +123,7 @@ public class UITestUtils {
         for (int i = 0; i < NUM_FEEDS; i++) {
             Feed feed = new Feed(0, null, "Title " + i, "http://example.com/" + i, "Description of feed " + i,
                     "http://example.com/pay/feed" + i, "author " + i, "en", Feed.TYPE_RSS2, "feed" + i, null, null,
-                    "http://example.com/feed/src/" + i, false);
+                    "http://example.com/feed/src/" + i, System.currentTimeMillis());
 
             // create items
             List<FeedItem> items = new ArrayList<>();
@@ -138,7 +138,7 @@ public class UITestUtils {
                 }
             }
             feed.setItems(items);
-            feed.setDownload_url(hostFeed(feed));
+            feed.setDownloadUrl(hostFeed(feed));
             hostedFeeds.add(feed);
         }
         feedDataHosted = true;
@@ -169,13 +169,12 @@ public class UITestUtils {
 
         List<FeedItem> queue = new ArrayList<>();
         for (Feed feed : hostedFeeds) {
-            feed.setDownloaded(true);
             if (downloadEpisodes) {
                 for (FeedItem item : feed.getItems()) {
                     if (item.hasMedia()) {
                         FeedMedia media = item.getMedia();
-                        int fileId = Integer.parseInt(StringUtils.substringAfter(media.getDownload_url(), "files/"));
-                        media.setFile_url(server.accessFile(fileId).getAbsolutePath());
+                        int fileId = Integer.parseInt(StringUtils.substringAfter(media.getDownloadUrl(), "files/"));
+                        media.setLocalFileUrl(server.accessFile(fileId).getAbsolutePath());
                         media.setDownloaded(true);
                     }
                 }

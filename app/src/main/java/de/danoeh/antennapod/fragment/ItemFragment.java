@@ -44,17 +44,17 @@ import de.danoeh.antennapod.event.PlayerStatusEvent;
 import de.danoeh.antennapod.event.UnreadItemsUpdateEvent;
 import de.danoeh.antennapod.model.feed.FeedItem;
 import de.danoeh.antennapod.model.feed.FeedMedia;
-import de.danoeh.antennapod.core.feed.util.ImageResourceUtils;
-import de.danoeh.antennapod.core.preferences.UsageStatistics;
+import de.danoeh.antennapod.storage.preferences.UsageStatistics;
 import de.danoeh.antennapod.net.download.serviceinterface.DownloadServiceInterface;
 import de.danoeh.antennapod.storage.preferences.UserPreferences;
-import de.danoeh.antennapod.core.storage.DBReader;
-import de.danoeh.antennapod.core.util.Converter;
-import de.danoeh.antennapod.core.util.DateFormatter;
+import de.danoeh.antennapod.storage.database.DBReader;
+import de.danoeh.antennapod.ui.common.Converter;
+import de.danoeh.antennapod.ui.common.DateFormatter;
 import de.danoeh.antennapod.ui.common.CircularProgressBar;
 import de.danoeh.antennapod.ui.common.ThemeUtils;
 import de.danoeh.antennapod.core.util.playback.PlaybackController;
 import de.danoeh.antennapod.core.util.gui.ShownotesCleaner;
+import de.danoeh.antennapod.ui.episodes.ImageResourceUtils;
 import de.danoeh.antennapod.view.ShownotesWebView;
 import io.reactivex.Observable;
 import io.reactivex.android.schedulers.AndroidSchedulers;
@@ -304,12 +304,12 @@ public class ItemFragment extends Fragment {
     private void updateButtons() {
         progbarDownload.setVisibility(View.GONE);
         if (item.hasMedia()) {
-            if (DownloadServiceInterface.get().isDownloadingEpisode(item.getMedia().getDownload_url())) {
+            if (DownloadServiceInterface.get().isDownloadingEpisode(item.getMedia().getDownloadUrl())) {
                 progbarDownload.setVisibility(View.VISIBLE);
                 progbarDownload.setPercentage(0.01f * Math.max(1,
-                        DownloadServiceInterface.get().getProgress(item.getMedia().getDownload_url())), item);
+                        DownloadServiceInterface.get().getProgress(item.getMedia().getDownloadUrl())), item);
                 progbarDownload.setIndeterminate(
-                        DownloadServiceInterface.get().isEpisodeQueued(item.getMedia().getDownload_url()));
+                        DownloadServiceInterface.get().isEpisodeQueued(item.getMedia().getDownloadUrl()));
             }
         }
 
@@ -334,7 +334,7 @@ public class ItemFragment extends Fragment {
             } else {
                 actionButton1 = new StreamActionButton(item);
             }
-            if (DownloadServiceInterface.get().isDownloadingEpisode(media.getDownload_url())) {
+            if (DownloadServiceInterface.get().isDownloadingEpisode(media.getDownloadUrl())) {
                 actionButton2 = new CancelDownloadActionButton(item);
             } else if (!media.isDownloaded()) {
                 actionButton2 = new DownloadActionButton(item);
@@ -383,7 +383,7 @@ public class ItemFragment extends Fragment {
         if (item == null || item.getMedia() == null) {
             return;
         }
-        if (!event.getUrls().contains(item.getMedia().getDownload_url())) {
+        if (!event.getUrls().contains(item.getMedia().getDownloadUrl())) {
             return;
         }
         if (itemsLoaded && getActivity() != null) {

@@ -18,6 +18,7 @@ import de.danoeh.antennapod.model.feed.FeedItem;
 import de.danoeh.antennapod.model.feed.FeedMedia;
 import de.danoeh.antennapod.model.feed.FeedPreferences;
 import de.danoeh.antennapod.net.sync.model.EpisodeAction;
+import de.danoeh.antennapod.storage.database.DBReader;
 import de.danoeh.antennapod.storage.database.PodDBAdapter;
 import de.danoeh.antennapod.storage.database.mapper.FeedCursorMapper;
 import de.danoeh.antennapod.storage.preferences.UserPreferences;
@@ -98,7 +99,7 @@ public final class DBTasks {
     public static void notifyMissingFeedMediaFile(final Context context, final FeedMedia media) {
         Log.i(TAG, "The feedmanager was notified about a missing episode. It will update its database now.");
         media.setDownloaded(false);
-        media.setFile_url(null);
+        media.setLocalFileUrl(null);
         DBWriter.setFeedMedia(media);
         EventBus.getDefault().post(FeedItemEvent.updated(media.getItem()));
         EventBus.getDefault().post(new MessageEvent(context.getString(R.string.error_file_not_found)));
@@ -171,6 +172,13 @@ public final class DBTasks {
      * This is to work around podcasters breaking their GUIDs.
      */
     private static FeedItem searchFeedItemGuessDuplicate(List<FeedItem> items, FeedItem searchItem) {
+        // First, see if it is a well-behaving feed that contains an item with the same identifier
+        for (FeedItem item : items) {
+            if (FeedItemDuplicateGuesser.sameAndNotEmpty(item.getItemIdentifier(), searchItem.getItemIdentifier())) {
+                return item;
+            }
+        }
+        // Not found yet, start more expensive guessing
         for (FeedItem item : items) {
             if (FeedItemDuplicateGuesser.seemDuplicates(item, searchItem)) {
                 return item;
@@ -197,6 +205,7 @@ public final class DBTasks {
     public static synchronized Feed updateFeed(Context context, Feed newFeed, boolean removeUnlistedItems) {
         Feed resultFeed;
         List<FeedItem> unlistedItems = new ArrayList<>();
+        List<FeedItem> itemsToAddToQueue = new ArrayList<>();
 
         PodDBAdapter adapter = PodDBAdapter.getInstance();
         adapter.open();
@@ -215,17 +224,11 @@ public final class DBTasks {
             Collections.sort(newFeed.getItems(), new FeedItemPubdateComparator());
 
             if (newFeed.getPageNr() == savedFeed.getPageNr()) {
-                if (savedFeed.compareWithOther(newFeed)) {
-                    Log.d(TAG, "Feed has updated attribute values. Updating old feed's attributes");
-                    savedFeed.updateFromOther(newFeed);
-                }
+                savedFeed.updateFromOther(newFeed);
+                savedFeed.getPreferences().updateFromOther(newFeed.getPreferences());
             } else {
                 Log.d(TAG, "New feed has a higher page number.");
                 savedFeed.setNextPageLink(newFeed.getNextPageLink());
-            }
-            if (savedFeed.getPreferences().compareWithOther(newFeed.getPreferences())) {
-                Log.d(TAG, "Feed has updated preferences. Updating old feed's preferences");
-                savedFeed.getPreferences().updateFromOther(newFeed.getPreferences());
             }
 
             // get the most recent date now, before we start changing the list
@@ -242,8 +245,9 @@ public final class DBTasks {
                 FeedItem possibleDuplicate = searchFeedItemGuessDuplicate(newFeed.getItems(), item);
                 if (!newFeed.isLocalFeed() && possibleDuplicate != null && item != possibleDuplicate) {
                     // Canonical episode is the first one returned (usually oldest)
-                    DBWriter.addDownloadStatus(new DownloadResult(savedFeed,
-                            item.getTitle(), DownloadError.ERROR_PARSER_EXCEPTION_DUPLICATE, false,
+                    DBWriter.addDownloadStatus(new DownloadResult(item.getTitle(),
+                            savedFeed.getId(), Feed.FEEDFILETYPE_FEED, false,
+                            DownloadError.ERROR_PARSER_EXCEPTION_DUPLICATE,
                             "The podcast host appears to have added the same episode twice. "
                                     + "AntennaPod still refreshed the feed and attempted to repair it."
                                     + "\n\nOriginal episode:\n" + duplicateEpisodeDetails(item)
@@ -257,8 +261,9 @@ public final class DBTasks {
                     oldItem = searchFeedItemGuessDuplicate(savedFeed.getItems(), item);
                     if (oldItem != null) {
                         Log.d(TAG, "Repaired duplicate: " + oldItem + ", " + item);
-                        DBWriter.addDownloadStatus(new DownloadResult(savedFeed,
-                                item.getTitle(), DownloadError.ERROR_PARSER_EXCEPTION_DUPLICATE, false,
+                        DBWriter.addDownloadStatus(new DownloadResult(item.getTitle(),
+                                savedFeed.getId(), Feed.FEEDFILETYPE_FEED, false,
+                                DownloadError.ERROR_PARSER_EXCEPTION_DUPLICATE,
                                 "The podcast host changed the ID of an existing episode instead of just "
                                         + "updating the episode itself. AntennaPod still refreshed the feed and "
                                         + "attempted to repair it."
@@ -290,18 +295,26 @@ public final class DBTasks {
                         savedFeed.getItems().add(idx, item);
                     }
 
-                    FeedPreferences.NewEpisodesAction action = savedFeed.getPreferences().getNewEpisodesAction();
-                    if (action == FeedPreferences.NewEpisodesAction.GLOBAL) {
-                        action = UserPreferences.getNewEpisodesAction();
-                    }
-                    if (action == FeedPreferences.NewEpisodesAction.ADD_TO_INBOX
-                            && (item.getPubDate() == null
-                                || priorMostRecentDate == null
-                                || priorMostRecentDate.before(item.getPubDate())
-                                || priorMostRecentDate.equals(item.getPubDate()))) {
-                        Log.d(TAG, "Marking item published on " + item.getPubDate()
-                                + " new, prior most recent date = " + priorMostRecentDate);
-                        item.setNew();
+                    if (item.getPubDate() == null
+                            || priorMostRecentDate == null
+                            || priorMostRecentDate.before(item.getPubDate())
+                            || priorMostRecentDate.equals(item.getPubDate())) {
+                        Log.d(TAG, "Performing new episode action for item published on " + item.getPubDate()
+                                + ", prior most recent date = " + priorMostRecentDate);
+                        FeedPreferences.NewEpisodesAction action = savedFeed.getPreferences().getNewEpisodesAction();
+                        if (action == FeedPreferences.NewEpisodesAction.GLOBAL) {
+                            action = UserPreferences.getNewEpisodesAction();
+                        }
+                        switch (action) {
+                            case ADD_TO_INBOX:
+                                item.setNew();
+                                break;
+                            case ADD_TO_QUEUE:
+                                itemsToAddToQueue.add(item);
+                                break;
+                            default:
+                                break;
+                        }
                     }
                 }
             }
@@ -319,7 +332,7 @@ public final class DBTasks {
             }
 
             // update attributes
-            savedFeed.setLastUpdate(newFeed.getLastUpdate());
+            savedFeed.setLastModified(newFeed.getLastModified());
             savedFeed.setType(newFeed.getType());
             savedFeed.setLastUpdateFailed(false);
 
@@ -341,6 +354,9 @@ public final class DBTasks {
             e.printStackTrace();
         }
 
+        // We need to add to queue after items are saved to database
+        DBWriter.addQueueItem(context, itemsToAddToQueue.toArray(new FeedItem[0]));
+
         adapter.close();
 
         if (savedFeed != null) {
@@ -355,7 +371,7 @@ public final class DBTasks {
     private static String duplicateEpisodeDetails(FeedItem item) {
         return "Title: " + item.getTitle()
                 + "\nID: " + item.getItemIdentifier()
-                + ((item.getMedia() == null) ? "" : "\nURL: " + item.getMedia().getDownload_url());
+                + ((item.getMedia() == null) ? "" : "\nURL: " + item.getMedia().getDownloadUrl());
     }
 
     /**

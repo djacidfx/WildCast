@@ -13,8 +13,8 @@ import com.google.android.material.appbar.MaterialToolbar;
 import com.google.android.material.bottomsheet.BottomSheetDialogFragment;
 import de.danoeh.antennapod.R;
 import de.danoeh.antennapod.adapter.DownloadLogAdapter;
-import de.danoeh.antennapod.core.event.DownloadLogEvent;
-import de.danoeh.antennapod.core.storage.DBReader;
+import de.danoeh.antennapod.event.DownloadLogEvent;
+import de.danoeh.antennapod.storage.database.DBReader;
 import de.danoeh.antennapod.core.storage.DBWriter;
 import de.danoeh.antennapod.databinding.DownloadLogFragmentBinding;
 import de.danoeh.antennapod.dialog.DownloadLogDetailsDialog;
@@ -86,9 +86,9 @@ public class DownloadLogFragment extends BottomSheetDialogFragment
 
     @Override
     public void onItemClick(AdapterView<?> parent, View view, int position, long id) {
-        Object item = adapter.getItem(position);
-        if (item instanceof DownloadResult) {
-            new DownloadLogDetailsDialog(getContext(), (DownloadResult) item).show();
+        final DownloadResult item = adapter.getItem(position);
+        if (item != null) {
+            new DownloadLogDetailsDialog(getContext(), item).show();
         }
     }
 

@@ -12,10 +12,11 @@ import androidx.documentfile.provider.DocumentFile;
 
 import com.google.common.util.concurrent.Futures;
 
-import de.danoeh.antennapod.core.event.DownloadLogEvent;
+import de.danoeh.antennapod.event.DownloadLogEvent;
 import de.danoeh.antennapod.core.feed.LocalFeedUpdater;
 import de.danoeh.antennapod.net.download.serviceinterface.DownloadServiceInterface;
 import de.danoeh.antennapod.core.service.playback.PlaybackServiceInterface;
+import de.danoeh.antennapod.storage.database.DBReader;
 import de.danoeh.antennapod.storage.database.PodDBAdapter;
 
 import org.greenrobot.eventbus.EventBus;
@@ -39,15 +40,15 @@ import de.danoeh.antennapod.event.MessageEvent;
 import de.danoeh.antennapod.event.playback.PlaybackHistoryEvent;
 import de.danoeh.antennapod.event.QueueEvent;
 import de.danoeh.antennapod.event.UnreadItemsUpdateEvent;
-import de.danoeh.antennapod.core.feed.FeedEvent;
-import de.danoeh.antennapod.core.preferences.PlaybackPreferences;
+import de.danoeh.antennapod.event.FeedEvent;
+import de.danoeh.antennapod.storage.preferences.PlaybackPreferences;
 import de.danoeh.antennapod.storage.preferences.UserPreferences;
 import de.danoeh.antennapod.model.download.DownloadResult;
 import de.danoeh.antennapod.core.sync.queue.SynchronizationQueueSink;
-import de.danoeh.antennapod.core.util.FeedItemPermutors;
+import de.danoeh.antennapod.storage.database.FeedItemPermutors;
 import de.danoeh.antennapod.core.util.IntentUtils;
-import de.danoeh.antennapod.core.util.LongList;
-import de.danoeh.antennapod.core.util.Permutor;
+import de.danoeh.antennapod.storage.database.LongList;
+import de.danoeh.antennapod.storage.database.Permutor;
 import de.danoeh.antennapod.model.feed.Feed;
 import de.danoeh.antennapod.model.feed.FeedItem;
 import de.danoeh.antennapod.model.feed.FeedMedia;
@@ -96,18 +97,16 @@ public class DBWriter {
      * Deletes a downloaded FeedMedia file from the storage device.
      *
      * @param context A context that is used for opening a database connection.
-     * @param mediaId ID of the FeedMedia object whose downloaded file should be deleted.
      */
     public static Future<?> deleteFeedMediaOfItem(@NonNull final Context context,
-                                                  final long mediaId) {
+                                                  final FeedMedia media) {
         return runOnDbThread(() -> {
-            final FeedMedia media = DBReader.getFeedMedia(mediaId);
-            if (media != null) {
-                boolean result = deleteFeedMediaSynchronous(context, media);
-
-                if (result && UserPreferences.shouldDeleteRemoveFromQueue()) {
-                    DBWriter.removeQueueItemSynchronous(context, false, media.getItem().getId());
-                }
+            if (media == null) {
+                return;
+            }
+            boolean result = deleteFeedMediaSynchronous(context, media);
+            if (result && UserPreferences.shouldDeleteRemoveFromQueue()) {
+                DBWriter.removeQueueItemSynchronous(context, false, media.getItemId());
             }
         });
     }
@@ -116,25 +115,25 @@ public class DBWriter {
         Log.i(TAG, String.format(Locale.US, "Requested to delete FeedMedia [id=%d, title=%s, downloaded=%s",
                 media.getId(), media.getEpisodeTitle(), media.isDownloaded()));
         boolean localDelete = false;
-        if (media.getFile_url() != null && media.getFile_url().startsWith("content://")) {
+        if (media.getLocalFileUrl() != null && media.getLocalFileUrl().startsWith("content://")) {
             // Local feed
-            DocumentFile documentFile = DocumentFile.fromSingleUri(context, Uri.parse(media.getFile_url()));
+            DocumentFile documentFile = DocumentFile.fromSingleUri(context, Uri.parse(media.getLocalFileUrl()));
             if (documentFile == null || !documentFile.exists() || !documentFile.delete()) {
                 EventBus.getDefault().post(new MessageEvent(context.getString(R.string.delete_local_failed)));
                 return false;
             }
-            media.setFile_url(null);
+            media.setLocalFileUrl(null);
             localDelete = true;
-        } else if (media.getFile_url() != null) {
+        } else if (media.getLocalFileUrl() != null) {
             // delete downloaded media file
-            File mediaFile = new File(media.getFile_url());
+            File mediaFile = new File(media.getLocalFileUrl());
             if (mediaFile.exists() && !mediaFile.delete()) {
                 MessageEvent evt = new MessageEvent(context.getString(R.string.delete_failed));
                 EventBus.getDefault().post(evt);
                 return false;
             }
             media.setDownloaded(false);
-            media.setFile_url(null);
+            media.setLocalFileUrl(null);
             media.setHasEmbeddedPicture(false);
             PodDBAdapter adapter = PodDBAdapter.getInstance();
             adapter.open();
@@ -174,15 +173,11 @@ public class DBWriter {
      */
     public static Future<?> deleteFeed(final Context context, final long feedId) {
         return runOnDbThread(() -> {
-            final Feed feed = DBReader.getFeed(feedId);
+            final Feed feed = DBReader.getFeed(feedId, false);
             if (feed == null) {
                 return;
             }
 
-            // delete stored media files and mark them as read
-            if (feed.getItems() == null) {
-                DBReader.getFeedItemList(feed);
-            }
             deleteFeedItemsSynchronous(context, feed.getItems());
 
             // delete feed
@@ -192,7 +187,7 @@ public class DBWriter {
             adapter.close();
 
             if (!feed.isLocalFeed()) {
-                SynchronizationQueueSink.enqueueFeedRemovedIfSynchronizationIsActive(context, feed.getDownload_url());
+                SynchronizationQueueSink.enqueueFeedRemovedIfSynchronizationIsActive(context, feed.getDownloadUrl());
             }
             EventBus.getDefault().post(new FeedListUpdateEvent(feed));
         });
@@ -225,7 +220,9 @@ public class DBWriter {
                     IntentUtils.sendLocalBroadcast(context, PlaybackServiceInterface.ACTION_SHUTDOWN_PLAYBACK_SERVICE);
                 }
                 if (!item.getFeed().isLocalFeed()) {
-                    DownloadServiceInterface.get().cancel(context, item.getMedia());
+                    if (DownloadServiceInterface.get().isDownloadingEpisode(item.getMedia().getDownloadUrl())) {
+                        DownloadServiceInterface.get().cancel(context, item.getMedia());
+                    }
                     if (item.getMedia().isDownloaded()) {
                         deleteFeedMediaSynchronous(context, item.getMedia());
                     }
@@ -431,7 +428,7 @@ public class DBWriter {
             List<FeedItem> updatedItems = new ArrayList<>();
             ItemEnqueuePositionCalculator positionCalculator =
                     new ItemEnqueuePositionCalculator(UserPreferences.getEnqueueLocation());
-            Playable currentlyPlaying = PlaybackPreferences.createInstanceFromPreferences(context);
+            Playable currentlyPlaying = DBReader.getFeedMedia(PlaybackPreferences.getCurrentlyPlayingFeedMediaId());
             int insertPosition = positionCalculator.calcPosition(queue, currentlyPlaying);
             for (long itemId : itemIds) {
                 if (!itemListContains(queue, itemId)) {
@@ -802,7 +799,7 @@ public class DBWriter {
 
             for (Feed feed : feeds) {
                 if (!feed.isLocalFeed()) {
-                    SynchronizationQueueSink.enqueueFeedAddedIfSynchronizationIsActive(context, feed.getDownload_url());
+                    SynchronizationQueueSink.enqueueFeedAddedIfSynchronizationIsActive(context, feed.getDownloadUrl());
                 }
             }
 

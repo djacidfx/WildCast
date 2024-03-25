@@ -13,7 +13,6 @@ import androidx.annotation.NonNull;
 import androidx.media.AudioAttributesCompat;
 import androidx.media.AudioFocusRequestCompat;
 import androidx.media.AudioManagerCompat;
-import de.danoeh.antennapod.core.feed.util.PlaybackSpeedUtils;
 import de.danoeh.antennapod.event.PlayerErrorEvent;
 import de.danoeh.antennapod.event.playback.BufferUpdateEvent;
 import de.danoeh.antennapod.event.playback.SpeedChangedEvent;
@@ -26,6 +25,7 @@ import de.danoeh.antennapod.playback.base.PlaybackServiceMediaPlayer;
 import de.danoeh.antennapod.playback.base.PlayerStatus;
 import de.danoeh.antennapod.playback.base.RewindAfterPauseUtils;
 import de.danoeh.antennapod.storage.preferences.UserPreferences;
+import de.danoeh.antennapod.ui.episodes.PlaybackSpeedUtils;
 import org.greenrobot.eventbus.EventBus;
 
 import java.io.File;
@@ -161,7 +161,9 @@ public class LocalPSMP extends PlaybackServiceMediaPlayer {
         try {
             callback.ensureMediaInfoLoaded(media);
             callback.onMediaChanged(false);
-            setPlaybackParams(PlaybackSpeedUtils.getCurrentPlaybackSpeed(media), UserPreferences.isSkipSilence());
+            setPlaybackParams(PlaybackSpeedUtils.getCurrentPlaybackSpeed(media),
+                    PlaybackSpeedUtils.getCurrentSkipSilencePreference(media)
+                            == FeedPreferences.SkipSilence.AGGRESSIVE);
             if (stream) {
                 if (playable instanceof FeedMedia) {
                     FeedMedia feedMedia = (FeedMedia) playable;
@@ -173,10 +175,10 @@ public class LocalPSMP extends PlaybackServiceMediaPlayer {
                 } else {
                     mediaPlayer.setDataSource(media.getStreamUrl());
                 }
-            } else if (media.getLocalMediaUrl() != null && new File(media.getLocalMediaUrl()).canRead()) {
-                mediaPlayer.setDataSource(media.getLocalMediaUrl());
+            } else if (media.getLocalFileUrl() != null && new File(media.getLocalFileUrl()).canRead()) {
+                mediaPlayer.setDataSource(media.getLocalFileUrl());
             } else {
-                throw new IOException("Unable to read local file " + media.getLocalMediaUrl());
+                throw new IOException("Unable to read local file " + media.getLocalFileUrl());
             }
             UiModeManager uiModeManager = (UiModeManager) context.getSystemService(Context.UI_MODE_SERVICE);
             if (uiModeManager.getCurrentModeType() != Configuration.UI_MODE_TYPE_CAR) {
@@ -212,13 +214,14 @@ public class LocalPSMP extends PlaybackServiceMediaPlayer {
                 Log.d(TAG, "Resuming/Starting playback");
                 acquireWifiLockIfNecessary();
 
-                setPlaybackParams(PlaybackSpeedUtils.getCurrentPlaybackSpeed(media), UserPreferences.isSkipSilence());
+                setPlaybackParams(PlaybackSpeedUtils.getCurrentPlaybackSpeed(media),
+                        PlaybackSpeedUtils.getCurrentSkipSilencePreference(media)
+                                == FeedPreferences.SkipSilence.AGGRESSIVE);
                 setVolume(1.0f, 1.0f);
 
                 if (playerStatus == PlayerStatus.PREPARED && media.getPosition() > 0) {
                     int newPosition = RewindAfterPauseUtils.calculatePositionWithRewind(
-                        media.getPosition(),
-                        media.getLastPlayedTime());
+                            media.getPosition(), media.getLastPlayedTime());
                     seekTo(newPosition);
                 }
                 mediaPlayer.start();
@@ -457,6 +460,18 @@ public class LocalPSMP extends PlaybackServiceMediaPlayer {
                 || playerStatus == PlayerStatus.INITIALIZED
                 || playerStatus == PlayerStatus.PREPARED)) {
             retVal = mediaPlayer.getCurrentSpeedMultiplier();
+        }
+        return retVal;
+    }
+
+    @Override
+    public boolean getSkipSilence() {
+        boolean retVal = false;
+        if ((playerStatus == PlayerStatus.PLAYING
+                || playerStatus == PlayerStatus.PAUSED
+                || playerStatus == PlayerStatus.INITIALIZED
+                || playerStatus == PlayerStatus.PREPARED)) {
+            retVal = mediaPlayer.getCurrentSkipSilence();
         }
         return retVal;
     }

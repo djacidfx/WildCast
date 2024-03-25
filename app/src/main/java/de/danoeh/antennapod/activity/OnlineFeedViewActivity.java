@@ -30,7 +30,7 @@ import com.google.android.material.snackbar.Snackbar;
 
 import de.danoeh.antennapod.R;
 import de.danoeh.antennapod.adapter.FeedItemlistDescriptionAdapter;
-import de.danoeh.antennapod.core.preferences.ThemeSwitcher;
+import de.danoeh.antennapod.ui.common.ThemeSwitcher;
 import de.danoeh.antennapod.core.service.download.DownloadRequestCreator;
 import de.danoeh.antennapod.core.feed.FeedUrlNotFoundException;
 import de.danoeh.antennapod.core.storage.DBTasks;
@@ -41,14 +41,14 @@ import de.danoeh.antennapod.databinding.OnlinefeedviewHeaderBinding;
 import de.danoeh.antennapod.event.EpisodeDownloadEvent;
 import de.danoeh.antennapod.event.FeedListUpdateEvent;
 import de.danoeh.antennapod.event.PlayerStatusEvent;
-import de.danoeh.antennapod.core.preferences.PlaybackPreferences;
+import de.danoeh.antennapod.storage.preferences.PlaybackPreferences;
 import de.danoeh.antennapod.net.download.serviceinterface.DownloadServiceInterface;
 import de.danoeh.antennapod.storage.preferences.UserPreferences;
-import de.danoeh.antennapod.net.download.serviceinterface.DownloadRequest;
+import de.danoeh.antennapod.model.download.DownloadRequest;
 import de.danoeh.antennapod.model.download.DownloadResult;
 import de.danoeh.antennapod.core.service.download.Downloader;
 import de.danoeh.antennapod.core.service.download.HttpDownloader;
-import de.danoeh.antennapod.core.storage.DBReader;
+import de.danoeh.antennapod.storage.database.DBReader;
 import de.danoeh.antennapod.core.storage.DBWriter;
 import de.danoeh.antennapod.net.discovery.CombinedSearcher;
 import de.danoeh.antennapod.net.discovery.PodcastSearchResult;
@@ -61,13 +61,13 @@ import de.danoeh.antennapod.net.common.UrlChecker;
 import de.danoeh.antennapod.core.util.syndication.FeedDiscoverer;
 import de.danoeh.antennapod.core.util.syndication.HtmlToPlainText;
 import de.danoeh.antennapod.databinding.OnlinefeedviewActivityBinding;
-import de.danoeh.antennapod.dialog.AuthenticationDialog;
 import de.danoeh.antennapod.model.feed.Feed;
 import de.danoeh.antennapod.model.feed.FeedPreferences;
 import de.danoeh.antennapod.model.playback.RemoteMedia;
 import de.danoeh.antennapod.parser.feed.UnsupportedFeedtypeException;
 import de.danoeh.antennapod.ui.common.ThemeUtils;
 import de.danoeh.antennapod.ui.glide.FastBlurTransformation;
+import de.danoeh.antennapod.ui.preferences.screen.synchronization.AuthenticationDialog;
 import io.reactivex.Maybe;
 import io.reactivex.Observable;
 import io.reactivex.android.schedulers.AndroidSchedulers;
@@ -382,7 +382,7 @@ public class OnlineFeedViewActivity extends AppCompatActivity {
     private FeedHandlerResult doParseFeed(String destination) throws Exception {
         FeedHandler handler = new FeedHandler();
         Feed feed = new Feed(selectedDownloadUrl, null);
-        feed.setFile_url(destination);
+        feed.setLocalFileUrl(destination);
         File destinationFile = new File(destination);
         try {
             return handler.parseFeed(feed);
@@ -485,7 +485,7 @@ public class OnlineFeedViewActivity extends AppCompatActivity {
             final List<String> alternateUrlsList = new ArrayList<>();
             final List<String> alternateUrlsTitleList = new ArrayList<>();
 
-            alternateUrlsList.add(feed.getDownload_url());
+            alternateUrlsList.add(feed.getDownloadUrl());
             alternateUrlsTitleList.add(feed.getTitle());
 
 
@@ -577,7 +577,7 @@ public class OnlineFeedViewActivity extends AppCompatActivity {
             return 0;
         }
         for (Feed f : feeds) {
-            if (f.getDownload_url().equals(selectedDownloadUrl)) {
+            if (f.getDownloadUrl().equals(selectedDownloadUrl)) {
                 return f.getId();
             }
         }

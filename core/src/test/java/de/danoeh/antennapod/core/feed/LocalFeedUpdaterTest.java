@@ -9,7 +9,7 @@ import android.webkit.MimeTypeMap;
 import androidx.annotation.NonNull;
 import androidx.test.platform.app.InstrumentationRegistry;
 
-import de.danoeh.antennapod.core.preferences.PlaybackPreferences;
+import de.danoeh.antennapod.storage.preferences.PlaybackPreferences;
 import de.danoeh.antennapod.net.download.serviceinterface.DownloadServiceInterface;
 import de.danoeh.antennapod.net.download.serviceinterface.DownloadServiceInterfaceStub;
 import de.danoeh.antennapod.core.util.FastDocumentFile;
@@ -36,7 +36,7 @@ import java.util.Objects;
 import de.danoeh.antennapod.core.ApplicationCallbacks;
 import de.danoeh.antennapod.core.ClientConfig;
 import de.danoeh.antennapod.storage.preferences.UserPreferences;
-import de.danoeh.antennapod.core.storage.DBReader;
+import de.danoeh.antennapod.storage.database.DBReader;
 import de.danoeh.antennapod.core.storage.DBWriter;
 
 import static org.hamcrest.CoreMatchers.endsWith;
@@ -112,7 +112,7 @@ public class LocalFeedUpdaterTest {
         // verify new feed in database
         verifySingleFeedInDatabaseAndItemCount(2);
         Feed feedAfter = verifySingleFeedInDatabase();
-        assertEquals(FEED_URL, feedAfter.getDownload_url());
+        assertEquals(FEED_URL, feedAfter.getDownloadUrl());
     }
 
     /**

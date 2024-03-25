@@ -23,12 +23,11 @@ import androidx.core.view.WindowCompat;
 import com.bumptech.glide.Glide;
 import com.bumptech.glide.load.resource.bitmap.RoundedCorners;
 import com.bumptech.glide.request.RequestOptions;
-import de.danoeh.antennapod.core.feed.util.PlaybackSpeedUtils;
-import de.danoeh.antennapod.core.storage.DBReader;
-import de.danoeh.antennapod.core.storage.StatisticsItem;
-import de.danoeh.antennapod.core.util.Converter;
 import de.danoeh.antennapod.model.feed.FeedItem;
+import de.danoeh.antennapod.storage.database.DBReader;
+import de.danoeh.antennapod.storage.database.StatisticsItem;
 import de.danoeh.antennapod.storage.preferences.UserPreferences;
+import de.danoeh.antennapod.ui.common.Converter;
 import de.danoeh.antennapod.ui.echo.databinding.EchoActivityBinding;
 import de.danoeh.antennapod.ui.echo.screens.BubbleScreen;
 import de.danoeh.antennapod.ui.echo.screens.FinalShareScreen;
@@ -36,6 +35,7 @@ import de.danoeh.antennapod.ui.echo.screens.RotatingSquaresScreen;
 import de.danoeh.antennapod.ui.echo.screens.StripesScreen;
 import de.danoeh.antennapod.ui.echo.screens.WaveformScreen;
 import de.danoeh.antennapod.ui.echo.screens.WavesScreen;
+import de.danoeh.antennapod.ui.episodes.PlaybackSpeedUtils;
 import io.reactivex.Flowable;
 import io.reactivex.Observable;
 import io.reactivex.android.schedulers.AndroidSchedulers;
@@ -222,7 +222,7 @@ public class EchoActivity extends AppCompatActivity {
                     long secondsPerDay = queueSecondsLeft / daysUntilNextYear;
                     String timePerDay = Converter.getDurationStringLocalized(
                             getLocalizedResources(this, getEchoLanguage()), secondsPerDay * 1000, true);
-                    double hoursPerDay = (double) (secondsPerDay / 3600);
+                    double hoursPerDay = secondsPerDay / 3600.0;
                     int nextYear = RELEASE_YEAR + 1;
                     if (hoursPerDay < 1.5) {
                         viewBinding.aboveLabel.setText(R.string.echo_queue_title_clean);

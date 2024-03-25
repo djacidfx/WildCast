@@ -21,11 +21,11 @@ import com.bumptech.glide.request.RequestOptions;
 import de.danoeh.antennapod.core.R;
 import de.danoeh.antennapod.storage.preferences.UserPreferences;
 import de.danoeh.antennapod.core.receiver.MediaButtonReceiver;
-import de.danoeh.antennapod.core.util.Converter;
-import de.danoeh.antennapod.core.feed.util.ImageResourceUtils;
-import de.danoeh.antennapod.core.util.TimeSpeedConverter;
-import de.danoeh.antennapod.core.util.gui.NotificationUtils;
+import de.danoeh.antennapod.ui.common.Converter;
 import de.danoeh.antennapod.model.playback.Playable;
+import de.danoeh.antennapod.ui.episodes.ImageResourceUtils;
+import de.danoeh.antennapod.ui.episodes.TimeSpeedConverter;
+import de.danoeh.antennapod.ui.notifications.NotificationUtils;
 import java.util.ArrayList;
 import java.util.concurrent.ExecutionException;
 

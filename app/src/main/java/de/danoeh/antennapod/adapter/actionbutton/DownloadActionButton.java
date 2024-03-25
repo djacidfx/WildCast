@@ -12,8 +12,8 @@ import de.danoeh.antennapod.R;
 import de.danoeh.antennapod.net.download.serviceinterface.DownloadServiceInterface;
 import de.danoeh.antennapod.model.feed.FeedItem;
 import de.danoeh.antennapod.model.feed.FeedMedia;
-import de.danoeh.antennapod.core.preferences.UsageStatistics;
-import de.danoeh.antennapod.core.util.NetworkUtils;
+import de.danoeh.antennapod.storage.preferences.UsageStatistics;
+import de.danoeh.antennapod.net.common.NetworkUtils;
 
 public class DownloadActionButton extends ItemActionButton {
 
@@ -68,7 +68,7 @@ public class DownloadActionButton extends ItemActionButton {
     }
 
     private boolean shouldNotDownload(@NonNull FeedMedia media) {
-        boolean isDownloading = DownloadServiceInterface.get().isDownloadingEpisode(media.getDownload_url());
+        boolean isDownloading = DownloadServiceInterface.get().isDownloadingEpisode(media.getDownloadUrl());
         return isDownloading || media.isDownloaded();
     }
 }

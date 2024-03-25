@@ -12,12 +12,16 @@ import java.util.Random;
 import androidx.test.platform.app.InstrumentationRegistry;
 
 import de.danoeh.antennapod.model.feed.Feed;
+import de.danoeh.antennapod.model.feed.FeedCounter;
 import de.danoeh.antennapod.model.feed.FeedItem;
 import de.danoeh.antennapod.model.feed.FeedItemFilter;
 import de.danoeh.antennapod.model.feed.FeedMedia;
+import de.danoeh.antennapod.model.feed.FeedOrder;
 import de.danoeh.antennapod.model.feed.SortOrder;
+import de.danoeh.antennapod.storage.database.DBReader;
+import de.danoeh.antennapod.storage.database.NavDrawerData;
 import de.danoeh.antennapod.storage.preferences.UserPreferences;
-import de.danoeh.antennapod.core.util.LongList;
+import de.danoeh.antennapod.storage.database.LongList;
 import de.danoeh.antennapod.storage.database.PodDBAdapter;
 import org.junit.After;
 import org.junit.Before;
@@ -80,10 +84,11 @@ public class DbReaderTest {
             PodDBAdapter adapter = PodDBAdapter.getInstance();
             adapter.open();
 
-            Feed feed1 = new Feed(0, null, "A", "link", "d", null, null, null, "rss", "A", null, "", "", true);
-            Feed feed2 = new Feed(0, null, "b", "link", "d", null, null, null, "rss", "b", null, "", "", true);
-            Feed feed3 = new Feed(0, null, "C", "link", "d", null, null, null, "rss", "C", null, "", "", true);
-            Feed feed4 = new Feed(0, null, "d", "link", "d", null, null, null, "rss", "d", null, "", "", true);
+            final long lastRefreshed = System.currentTimeMillis();
+            Feed feed1 = new Feed(0, null, "A", "link", "d", null, null, null, "rss", "A", null, "", "", lastRefreshed);
+            Feed feed2 = new Feed(0, null, "b", "link", "d", null, null, null, "rss", "b", null, "", "", lastRefreshed);
+            Feed feed3 = new Feed(0, null, "C", "link", "d", null, null, null, "rss", "C", null, "", "", lastRefreshed);
+            Feed feed4 = new Feed(0, null, "d", "link", "d", null, null, null, "rss", "d", null, "", "", lastRefreshed);
             adapter.setCompleteFeed(feed1);
             adapter.setCompleteFeed(feed2);
             adapter.setCompleteFeed(feed3);
@@ -112,7 +117,7 @@ public class DbReaderTest {
             assertNotNull(urls);
             assertEquals(feeds.size(), urls.size());
             for (int i = 0; i < urls.size(); i++) {
-                assertEquals(urls.get(i), feeds.get(i).getDownload_url());
+                assertEquals(urls.get(i), feeds.get(i).getDownloadUrl());
             }
         }
 
@@ -225,7 +230,7 @@ public class DbReaderTest {
                 if (!downloaded.contains(items.get(i))) {
                     FeedItem item = items.get(i);
                     item.getMedia().setDownloaded(true);
-                    item.getMedia().setFile_url("file" + i);
+                    item.getMedia().setLocalFileUrl("file" + i);
                     downloaded.add(item);
                 }
             }
@@ -247,7 +252,7 @@ public class DbReaderTest {
             for (FeedItem item : downloadedSaved) {
                 assertNotNull(item.getMedia());
                 assertTrue(item.getMedia().isDownloaded());
-                assertNotNull(item.getMedia().getDownload_url());
+                assertNotNull(item.getMedia().getDownloadUrl());
             }
         }
 
@@ -319,7 +324,7 @@ public class DbReaderTest {
                 }
                 adapter.close();
 
-                long len = DBReader.getPlaybackHistoryLength();
+                long len = DBReader.getTotalEpisodeCount(new FeedItemFilter(FeedItemFilter.IS_IN_HISTORY));
                 assertEquals("Wrong size: ", (int) len, playedItems);
             }
 
@@ -330,7 +335,8 @@ public class DbReaderTest {
             final int numFeeds = 10;
             final int numItems = 10;
             DbTestUtils.saveFeedlist(numFeeds, numItems, true);
-            NavDrawerData navDrawerData = DBReader.getNavDrawerData(UserPreferences.getSubscriptionsFilter());
+            NavDrawerData navDrawerData = DBReader.getNavDrawerData(
+                    UserPreferences.getSubscriptionsFilter(), FeedOrder.COUNTER, FeedCounter.SHOW_NEW);
             assertEquals(numFeeds, navDrawerData.items.size());
             assertEquals(0, navDrawerData.numNewItems);
             assertEquals(0, navDrawerData.queueSize);
@@ -359,7 +365,8 @@ public class DbReaderTest {
 
             adapter.close();
 
-            NavDrawerData navDrawerData = DBReader.getNavDrawerData(UserPreferences.getSubscriptionsFilter());
+            NavDrawerData navDrawerData = DBReader.getNavDrawerData(
+                    UserPreferences.getSubscriptionsFilter(), FeedOrder.COUNTER, FeedCounter.SHOW_NEW);
             assertEquals(numFeeds, navDrawerData.items.size());
             assertEquals(numNew, navDrawerData.numNewItems);
             assertEquals(numQueue, navDrawerData.queueSize);
@@ -423,7 +430,10 @@ public class DbReaderTest {
             FeedItem item2 = DBReader.getFeedItem(item1.getId());
             item2.setChapters(DBReader.loadChaptersOfFeedItem(item2));
             assertTrue(item2.hasChapters());
-            assertEquals(item1.getChapters(), item2.getChapters());
+            assertEquals(item1.getChapters().size(), item2.getChapters().size());
+            for (int i = 0; i < item1.getChapters().size(); i++) {
+                assertEquals(item1.getChapters().get(i).getId(), item2.getChapters().get(i).getId());
+            }
         }
 
         @Test
@@ -431,7 +441,7 @@ public class DbReaderTest {
             List<Feed> feeds = saveFeedlist(1, 1, true);
             FeedItem item1 = feeds.get(0).getItems().get(0);
             FeedItem feedItemByEpisodeUrl = DBReader.getFeedItemByGuidOrEpisodeUrl(null,
-                    item1.getMedia().getDownload_url());
+                    item1.getMedia().getDownloadUrl());
             assertEquals(item1.getItemIdentifier(), feedItemByEpisodeUrl.getItemIdentifier());
         }
 
@@ -441,7 +451,7 @@ public class DbReaderTest {
             FeedItem item1 = feeds.get(0).getItems().get(0);
 
             FeedItem feedItemByGuid = DBReader.getFeedItemByGuidOrEpisodeUrl(item1.getItemIdentifier(),
-                    item1.getMedia().getDownload_url());
+                    item1.getMedia().getDownloadUrl());
             assertEquals(item1.getItemIdentifier(), feedItemByGuid.getItemIdentifier());
         }
 
@@ -496,7 +506,8 @@ public class DbReaderTest {
             }
             adapter.close();
 
-            List<FeedItem> saved = DBReader.getPlaybackHistory(paramOffset, paramLimit);
+            List<FeedItem> saved = DBReader.getEpisodes(paramOffset, paramLimit,
+                    new FeedItemFilter(FeedItemFilter.IS_IN_HISTORY), SortOrder.COMPLETION_DATE_NEW_OLD);
             assertNotNull(saved);
             assertEquals(String.format("Wrong size with offset %d and limit %d: ",
                             paramOffset, paramLimit),

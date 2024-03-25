@@ -24,7 +24,6 @@ import com.bumptech.glide.Glide;
 import com.bumptech.glide.request.RequestOptions;
 import com.google.android.material.appbar.MaterialToolbar;
 import com.google.android.material.snackbar.Snackbar;
-import com.joanzapata.iconify.Iconify;
 import com.leinardi.android.speeddial.SpeedDialView;
 
 import org.apache.commons.lang3.StringUtils;
@@ -40,11 +39,11 @@ import java.util.concurrent.ExecutionException;
 import de.danoeh.antennapod.R;
 import de.danoeh.antennapod.activity.MainActivity;
 import de.danoeh.antennapod.adapter.EpisodeItemListAdapter;
-import de.danoeh.antennapod.core.feed.FeedEvent;
+import de.danoeh.antennapod.event.FeedEvent;
 import de.danoeh.antennapod.core.menuhandler.MenuItemUtils;
-import de.danoeh.antennapod.core.storage.DBReader;
+import de.danoeh.antennapod.storage.database.DBReader;
 import de.danoeh.antennapod.core.storage.DBWriter;
-import de.danoeh.antennapod.core.util.FeedItemPermutors;
+import de.danoeh.antennapod.storage.database.FeedItemPermutors;
 import de.danoeh.antennapod.core.util.FeedItemUtil;
 import de.danoeh.antennapod.core.util.IntentUtils;
 import de.danoeh.antennapod.core.util.ShareUtils;
@@ -277,7 +276,7 @@ public class FeedItemlistFragment extends Fragment implements AdapterView.OnItem
             FeedUpdateManager.runOnceOrAsk(getContext(), feed);
         } else if (item.getItemId() == R.id.refresh_complete_item) {
             new Thread(() -> {
-                feed.setNextPageLink(feed.getDownload_url());
+                feed.setNextPageLink(feed.getDownloadUrl());
                 feed.setPageNr(0);
                 try {
                     DBWriter.resetPagedFeedPage(feed).get();
@@ -445,9 +444,7 @@ public class FeedItemlistFragment extends Fragment implements AdapterView.OnItem
             viewBinding.header.txtvFailure.setVisibility(View.GONE);
         }
         if (!feed.getPreferences().getKeepUpdated()) {
-            viewBinding.header.txtvUpdatesDisabled.setText("{md-pause-circle-outline} "
-                    + this.getString(R.string.updates_disabled_label));
-            Iconify.addIcons(viewBinding.header.txtvUpdatesDisabled);
+            viewBinding.header.txtvUpdatesDisabled.setText(R.string.updates_disabled_label);
             viewBinding.header.txtvUpdatesDisabled.setVisibility(View.VISIBLE);
         } else {
             viewBinding.header.txtvUpdatesDisabled.setVisibility(View.GONE);
@@ -457,9 +454,7 @@ public class FeedItemlistFragment extends Fragment implements AdapterView.OnItem
         if (feed.getItemFilter() != null) {
             FeedItemFilter filter = feed.getItemFilter();
             if (filter.getValues().length > 0) {
-                viewBinding.header.txtvInformation.setText("{md-info-outline} "
-                        + this.getString(R.string.filtered_label));
-                Iconify.addIcons(viewBinding.header.txtvInformation);
+                viewBinding.header.txtvInformation.setText(R.string.filtered_label);
                 viewBinding.header.txtvInformation.setOnClickListener(l ->
                         FeedItemFilterDialog.newInstance(feed).show(getChildFragmentManager(), null));
                 viewBinding.header.txtvInformation.setVisibility(View.VISIBLE);

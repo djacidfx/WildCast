@@ -40,6 +40,7 @@ public class FeedPreferences implements Serializable {
     public enum NewEpisodesAction {
         GLOBAL(0),
         ADD_TO_INBOX(1),
+        ADD_TO_QUEUE(3),
         NOTHING(2);
 
         public final int code;
@@ -58,6 +59,25 @@ public class FeedPreferences implements Serializable {
         }
     }
 
+    public enum SkipSilence {
+        OFF(0), GLOBAL(1), AGGRESSIVE(2);
+
+        public final int code;
+
+        SkipSilence(int code) {
+            this.code = code;
+        }
+
+        public static SkipSilence fromCode(int code) {
+            for (SkipSilence s : values()) {
+                if (s.code == code) {
+                    return s;
+                }
+            }
+            return GLOBAL;
+        }
+    }
+
     @NonNull
     private FeedFilter filter;
     private long feedID;
@@ -71,6 +91,7 @@ public class FeedPreferences implements Serializable {
     private float feedPlaybackSpeed;
     private int feedSkipIntro;
     private int feedSkipEnding;
+    private SkipSilence feedSkipSilence;
     private boolean showEpisodeNotification;
     private final Set<String> tags = new HashSet<>();
 
@@ -78,13 +99,14 @@ public class FeedPreferences implements Serializable {
                            VolumeAdaptionSetting volumeAdaptionSetting, NewEpisodesAction newEpisodesAction,
                            String username, String password) {
         this(feedID, autoDownload, true, autoDeleteAction, volumeAdaptionSetting, username, password,
-                new FeedFilter(), SPEED_USE_GLOBAL, 0, 0, false, newEpisodesAction, new HashSet<>());
+                new FeedFilter(), SPEED_USE_GLOBAL, 0, 0, SkipSilence.GLOBAL,
+                false, newEpisodesAction, new HashSet<>());
     }
 
     public FeedPreferences(long feedID, boolean autoDownload, boolean keepUpdated,
                             AutoDeleteAction autoDeleteAction, VolumeAdaptionSetting volumeAdaptionSetting,
                             String username, String password, @NonNull FeedFilter filter,
-                            float feedPlaybackSpeed, int feedSkipIntro, int feedSkipEnding,
+                            float feedPlaybackSpeed, int feedSkipIntro, int feedSkipEnding, SkipSilence feedSkipSilence,
                             boolean showEpisodeNotification, NewEpisodesAction newEpisodesAction,
                             Set<String> tags) {
         this.feedID = feedID;
@@ -98,6 +120,7 @@ public class FeedPreferences implements Serializable {
         this.feedPlaybackSpeed = feedPlaybackSpeed;
         this.feedSkipIntro = feedSkipIntro;
         this.feedSkipEnding = feedSkipEnding;
+        this.feedSkipSilence = feedSkipSilence;
         this.showEpisodeNotification = showEpisodeNotification;
         this.newEpisodesAction = newEpisodesAction;
         this.tags.addAll(tags);
@@ -124,25 +147,6 @@ public class FeedPreferences implements Serializable {
 
     public void setKeepUpdated(boolean keepUpdated) {
         this.keepUpdated = keepUpdated;
-    }
-
-    /**
-     * Compare another FeedPreferences with this one. The feedID, autoDownload and AutoDeleteAction attribute are excluded from the
-     * comparison.
-     *
-     * @return True if the two objects are different.
-     */
-    public boolean compareWithOther(FeedPreferences other) {
-        if (other == null) {
-            return true;
-        }
-        if (!TextUtils.equals(username, other.username)) {
-            return true;
-        }
-        if (!TextUtils.equals(password, other.password)) {
-            return true;
-        }
-        return false;
     }
 
     /**
@@ -238,6 +242,14 @@ public class FeedPreferences implements Serializable {
 
     public int getFeedSkipEnding() {
         return feedSkipEnding;
+    }
+
+    public void setFeedSkipSilence(SkipSilence skipSilence) {
+        feedSkipSilence = skipSilence;
+    }
+
+    public SkipSilence getFeedSkipSilence() {
+        return feedSkipSilence;
     }
 
     public Set<String> getTags() {

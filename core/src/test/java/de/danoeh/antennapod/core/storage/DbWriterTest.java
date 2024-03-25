@@ -12,6 +12,7 @@ import androidx.test.platform.app.InstrumentationRegistry;
 
 import de.danoeh.antennapod.net.download.serviceinterface.DownloadServiceInterface;
 import de.danoeh.antennapod.net.download.serviceinterface.DownloadServiceInterfaceStub;
+import de.danoeh.antennapod.storage.database.DBReader;
 import de.danoeh.antennapod.storage.database.PodDBAdapter;
 import org.awaitility.Awaitility;
 import org.junit.After;
@@ -33,7 +34,7 @@ import de.danoeh.antennapod.core.ClientConfig;
 import de.danoeh.antennapod.model.feed.Feed;
 import de.danoeh.antennapod.model.feed.FeedItem;
 import de.danoeh.antennapod.model.feed.FeedMedia;
-import de.danoeh.antennapod.core.preferences.PlaybackPreferences;
+import de.danoeh.antennapod.storage.preferences.PlaybackPreferences;
 import de.danoeh.antennapod.storage.preferences.UserPreferences;
 import de.danoeh.antennapod.core.util.FeedItemUtil;
 
@@ -151,13 +152,13 @@ public class DbWriterTest {
         assertTrue(media.getId() != 0);
         assertTrue(item.getId() != 0);
 
-        DBWriter.deleteFeedMediaOfItem(context, media.getId())
+        DBWriter.deleteFeedMediaOfItem(context, media)
                 .get(TIMEOUT, TimeUnit.SECONDS);
         media = DBReader.getFeedMedia(media.getId());
         assertNotNull(media);
         assertFalse(dest.exists());
         assertFalse(media.isDownloaded());
-        assertNull(media.getFile_url());
+        assertNull(media.getLocalFileUrl());
     }
 
     @Test
@@ -189,15 +190,15 @@ public class DbWriterTest {
         assertTrue(media.getId() != 0);
         assertTrue(item.getId() != 0);
         queue = DBReader.getQueue();
-        assertTrue(queue.size() != 0);
+        assertFalse(queue.isEmpty());
 
-        DBWriter.deleteFeedMediaOfItem(context, media.getId());
+        DBWriter.deleteFeedMediaOfItem(context, media);
         Awaitility.await().timeout(2, TimeUnit.SECONDS).until(() -> !dest.exists());
         media = DBReader.getFeedMedia(media.getId());
         assertNotNull(media);
         assertFalse(dest.exists());
         assertFalse(media.isDownloaded());
-        assertNull(media.getFile_url());
+        assertNull(media.getLocalFileUrl());
         Awaitility.await().timeout(2, TimeUnit.SECONDS).until(() -> DBReader.getQueue().isEmpty());
     }
 

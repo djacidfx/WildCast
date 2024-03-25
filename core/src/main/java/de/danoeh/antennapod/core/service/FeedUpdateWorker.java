@@ -1,18 +1,19 @@
 package de.danoeh.antennapod.core.service;
 
+import android.Manifest;
 import android.app.Notification;
 import android.content.Context;
+import android.content.pm.PackageManager;
 import android.util.Log;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.core.app.NotificationCompat;
 import androidx.core.app.NotificationManagerCompat;
+import androidx.core.content.ContextCompat;
 import androidx.work.ForegroundInfo;
 import androidx.work.WorkManager;
 import androidx.work.Worker;
 import androidx.work.WorkerParameters;
-import com.annimon.stream.Collectors;
-import com.annimon.stream.Stream;
 import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.ListenableFuture;
 import de.danoeh.antennapod.core.ClientConfigurator;
@@ -22,18 +23,20 @@ import de.danoeh.antennapod.core.service.download.DefaultDownloaderFactory;
 import de.danoeh.antennapod.core.service.download.DownloadRequestCreator;
 import de.danoeh.antennapod.core.service.download.Downloader;
 import de.danoeh.antennapod.core.service.download.NewEpisodesNotification;
-import de.danoeh.antennapod.core.service.download.handler.FeedSyncTask;
-import de.danoeh.antennapod.core.storage.DBReader;
+import de.danoeh.antennapod.core.service.download.handler.FeedParserTask;
+import de.danoeh.antennapod.storage.database.DBReader;
 import de.danoeh.antennapod.core.storage.DBTasks;
 import de.danoeh.antennapod.core.storage.DBWriter;
-import de.danoeh.antennapod.core.util.NetworkUtils;
+import de.danoeh.antennapod.net.common.NetworkUtils;
 import de.danoeh.antennapod.core.util.download.FeedUpdateManager;
-import de.danoeh.antennapod.core.util.gui.NotificationUtils;
 import de.danoeh.antennapod.model.download.DownloadError;
 import de.danoeh.antennapod.model.download.DownloadResult;
 import de.danoeh.antennapod.model.feed.Feed;
-import de.danoeh.antennapod.net.download.serviceinterface.DownloadRequest;
+import de.danoeh.antennapod.model.download.DownloadRequest;
 
+import de.danoeh.antennapod.net.download.serviceinterface.DownloadRequestBuilder;
+import de.danoeh.antennapod.parser.feed.FeedHandlerResult;
+import de.danoeh.antennapod.ui.notifications.NotificationUtils;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Iterator;
@@ -104,11 +107,16 @@ public class FeedUpdateWorker extends Worker {
     private Notification createNotification(@Nullable List<Feed> toUpdate) {
         Context context = getApplicationContext();
         String contentText = "";
-        String bigText = "";
+        StringBuilder bigText = new StringBuilder();
         if (toUpdate != null) {
             contentText = context.getResources().getQuantityString(R.plurals.downloads_left,
                     toUpdate.size(), toUpdate.size());
-            bigText = Stream.of(toUpdate).map(feed -> "• " + feed.getTitle()).collect(Collectors.joining("\n"));
+            for (int i = 0; i < toUpdate.size(); i++) {
+                bigText.append("• ").append(toUpdate.get(i).getTitle());
+                if (i != toUpdate.size() - 1) {
+                    bigText.append("\n");
+                }
+            }
         }
         return new NotificationCompat.Builder(context, NotificationUtils.CHANNEL_ID_DOWNLOADING)
                 .setContentTitle(context.getString(R.string.download_notification_title_feeds))
@@ -132,7 +140,10 @@ public class FeedUpdateWorker extends Worker {
             if (isStopped()) {
                 return;
             }
-            notificationManager.notify(R.id.notification_updating_feeds, createNotification(toUpdate));
+            if (ContextCompat.checkSelfPermission(getApplicationContext(), Manifest.permission.POST_NOTIFICATIONS)
+                    == PackageManager.PERMISSION_GRANTED) {
+                notificationManager.notify(R.id.notification_updating_feeds, createNotification(toUpdate));
+            }
             Feed feed = toUpdate.get(0);
             try {
                 if (feed.isLocalFeed()) {
@@ -142,8 +153,9 @@ public class FeedUpdateWorker extends Worker {
                 }
             } catch (Exception e) {
                 DBWriter.setFeedLastUpdateFailed(feed.getId(), true);
-                DownloadResult status = new DownloadResult(feed, feed.getTitle(),
-                        DownloadError.ERROR_IO_ERROR, false, e.getMessage());
+                DownloadResult status = new DownloadResult(feed.getTitle(),
+                        feed.getId(), Feed.FEEDFILETYPE_FEED, false,
+                        DownloadError.ERROR_IO_ERROR, e.getMessage());
                 DBWriter.addDownloadStatus(status);
             }
             toUpdate.remove(0);
@@ -156,7 +168,7 @@ public class FeedUpdateWorker extends Worker {
         if (nextPage) {
             feed.setPageNr(feed.getPageNr() + 1);
         }
-        DownloadRequest.Builder builder = DownloadRequestCreator.create(feed);
+        DownloadRequestBuilder builder = DownloadRequestCreator.create(feed);
         builder.setForce(force || feed.hasLastUpdateFailed());
         if (nextPage) {
             builder.setSource(feed.getNextPageLink());
@@ -179,29 +191,30 @@ public class FeedUpdateWorker extends Worker {
             return;
         }
 
-        FeedSyncTask feedSyncTask = new FeedSyncTask(getApplicationContext(), request);
-        boolean success = feedSyncTask.run();
-
-        if (!success) {
+        FeedParserTask parserTask = new FeedParserTask(request);
+        FeedHandlerResult feedHandlerResult = parserTask.call();
+        if (!parserTask.isSuccessful()) {
             DBWriter.setFeedLastUpdateFailed(request.getFeedfileId(), true);
-            DBWriter.addDownloadStatus(feedSyncTask.getDownloadStatus());
+            DBWriter.addDownloadStatus(parserTask.getDownloadStatus());
             return;
         }
+        feedHandlerResult.feed.setLastRefreshAttempt(System.currentTimeMillis());
+        Feed savedFeed = DBTasks.updateFeed(getApplicationContext(), feedHandlerResult.feed, false);
 
         if (request.getFeedfileId() == 0) {
             return; // No download logs for new subscriptions
         }
         // we create a 'successful' download log if the feed's last refresh failed
         List<DownloadResult> log = DBReader.getFeedDownloadLog(request.getFeedfileId());
-        if (log.size() > 0 && !log.get(0).isSuccessful()) {
-            DBWriter.addDownloadStatus(feedSyncTask.getDownloadStatus());
+        if (!log.isEmpty() && !log.get(0).isSuccessful()) {
+            DBWriter.addDownloadStatus(parserTask.getDownloadStatus());
         }
-        newEpisodesNotification.showIfNeeded(getApplicationContext(), feedSyncTask.getSavedFeed());
+        newEpisodesNotification.showIfNeeded(getApplicationContext(), savedFeed);
         if (downloader.permanentRedirectUrl != null) {
             DBWriter.updateFeedDownloadURL(request.getSource(), downloader.permanentRedirectUrl);
-        } else if (feedSyncTask.getRedirectUrl() != null
-                && !feedSyncTask.getRedirectUrl().equals(request.getSource())) {
-            DBWriter.updateFeedDownloadURL(request.getSource(), feedSyncTask.getRedirectUrl());
+        } else if (feedHandlerResult.redirectUrl != null
+                && !feedHandlerResult.redirectUrl.equals(request.getSource())) {
+            DBWriter.updateFeedDownloadURL(request.getSource(), feedHandlerResult.redirectUrl);
         }
     }
 }

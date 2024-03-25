@@ -33,6 +33,7 @@ import com.google.android.material.bottomsheet.BottomSheetBehavior;
 import com.google.android.material.shape.MaterialShapeDrawable;
 import com.google.android.material.shape.ShapeAppearanceModel;
 
+import de.danoeh.antennapod.core.storage.EpisodeCleanupAlgorithmFactory;
 import org.apache.commons.lang3.StringUtils;
 import org.greenrobot.eventbus.EventBus;
 import org.greenrobot.eventbus.Subscribe;
@@ -50,9 +51,9 @@ import de.danoeh.antennapod.activity.PreferenceActivity;
 import de.danoeh.antennapod.adapter.NavListAdapter;
 import de.danoeh.antennapod.core.dialog.ConfirmationDialog;
 import de.danoeh.antennapod.core.menuhandler.MenuItemUtils;
-import de.danoeh.antennapod.core.storage.DBReader;
+import de.danoeh.antennapod.storage.database.DBReader;
 import de.danoeh.antennapod.core.storage.DBWriter;
-import de.danoeh.antennapod.core.storage.NavDrawerData;
+import de.danoeh.antennapod.storage.database.NavDrawerData;
 import de.danoeh.antennapod.dialog.DrawerPreferencesDialog;
 import de.danoeh.antennapod.dialog.RemoveFeedDialog;
 import de.danoeh.antennapod.dialog.RenameItemDialog;
@@ -92,6 +93,7 @@ public class NavDrawerFragment extends Fragment implements SharedPreferences.OnS
     };
 
     private NavDrawerData navDrawerData;
+    private int reclaimableSpace = 0;
     private List<NavDrawerData.DrawerItem> flatItemList;
     private NavDrawerData.DrawerItem contextPressedItem = null;
     private NavListAdapter navAdapter;
@@ -325,7 +327,7 @@ public class NavDrawerFragment extends Fragment implements SharedPreferences.OnS
 
         @Override
         public int getReclaimableItems() {
-            return (navDrawerData != null) ? navDrawerData.reclaimableSpace : 0;
+            return reclaimableSpace;
         }
 
         @Override
@@ -359,10 +361,10 @@ public class NavDrawerFragment extends Fragment implements SharedPreferences.OnS
                                 .setState(BottomSheetBehavior.STATE_COLLAPSED);
                     } else {
                         NavDrawerData.TagDrawerItem folder = ((NavDrawerData.TagDrawerItem) clickedItem);
-                        if (openFolders.contains(folder.name)) {
-                            openFolders.remove(folder.name);
+                        if (openFolders.contains(folder.getTitle())) {
+                            openFolders.remove(folder.getTitle());
                         } else {
-                            openFolders.add(folder.name);
+                            openFolders.add(folder.getTitle());
                         }
 
                         getContext().getSharedPreferences(PREF_NAME, Context.MODE_PRIVATE)
@@ -414,7 +416,9 @@ public class NavDrawerFragment extends Fragment implements SharedPreferences.OnS
     private void loadData() {
         disposable = Observable.fromCallable(
                 () -> {
-                    NavDrawerData data = DBReader.getNavDrawerData(UserPreferences.getSubscriptionsFilter());
+                    NavDrawerData data = DBReader.getNavDrawerData(UserPreferences.getSubscriptionsFilter(),
+                            UserPreferences.getFeedOrder(), UserPreferences.getFeedCounterSetting());
+                    reclaimableSpace = EpisodeCleanupAlgorithmFactory.build().getReclaimableItems();
                     return new Pair<>(data, makeFlatDrawerData(data.items, 0));
                 })
                 .subscribeOn(Schedulers.io())
@@ -438,8 +442,8 @@ public class NavDrawerFragment extends Fragment implements SharedPreferences.OnS
             flatItems.add(item);
             if (item.type == NavDrawerData.DrawerItem.Type.TAG) {
                 NavDrawerData.TagDrawerItem folder = ((NavDrawerData.TagDrawerItem) item);
-                folder.isOpen = openFolders.contains(folder.name);
-                if (folder.isOpen) {
+                folder.setOpen(openFolders.contains(folder.getTitle()));
+                if (folder.isOpen()) {
                     flatItems.addAll(makeFlatDrawerData(((NavDrawerData.TagDrawerItem) item).children, layer + 1));
                 }
             }

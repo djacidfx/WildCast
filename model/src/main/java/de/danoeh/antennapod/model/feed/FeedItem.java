@@ -17,13 +17,14 @@ import java.util.Set;
  *
  * @author daniel
  */
-public class FeedItem extends FeedComponent implements Serializable {
+public class FeedItem implements Serializable {
 
     /** tag that indicates this item is in the queue */
     public static final String TAG_QUEUE = "Queue";
     /** tag that indicates this item is in favorites */
     public static final String TAG_FAVORITE = "Favorite";
 
+    private long id;
     /**
      * The id/guid that can be found in the rss/atom feed. Might not be set.
      */
@@ -125,7 +126,6 @@ public class FeedItem extends FeedComponent implements Serializable {
     }
 
     public void updateFromOther(FeedItem other) {
-        super.updateFromOther(other);
         if (other.imageUrl != null) {
             this.imageUrl = other.imageUrl;
         }
@@ -163,6 +163,14 @@ public class FeedItem extends FeedComponent implements Serializable {
         }
     }
 
+    public long getId() {
+        return id;
+    }
+
+    public void setId(long id) {
+        this.id = id;
+    }
+
     /**
      * Returns the value that uniquely identifies this FeedItem. If the
      * itemIdentifier attribute is not null, it will be returned. Else it will
@@ -174,8 +182,8 @@ public class FeedItem extends FeedComponent implements Serializable {
             return itemIdentifier;
         } else if (title != null && !title.isEmpty()) {
             return title;
-        } else if (hasMedia() && media.getDownload_url() != null) {
-            return media.getDownload_url();
+        } else if (hasMedia() && media.getDownloadUrl() != null) {
+            return media.getDownloadUrl();
         } else {
             return link;
         }
@@ -317,16 +325,12 @@ public class FeedItem extends FeedComponent implements Serializable {
         if (imageUrl != null) {
             return imageUrl;
         } else if (media != null && media.hasEmbeddedPicture()) {
-            return FeedMedia.FILENAME_PREFIX_EMBEDDED_COVER + media.getLocalMediaUrl();
+            return FeedMedia.FILENAME_PREFIX_EMBEDDED_COVER + media.getLocalFileUrl();
         } else if (feed != null) {
             return feed.getImageUrl();
         } else {
             return null;
         }
-    }
-
-    public enum State {
-        UNREAD, IN_PROGRESS, READ, PLAYING
     }
 
     public long getFeedId() {
@@ -348,11 +352,6 @@ public class FeedItem extends FeedComponent implements Serializable {
 
     public void setImageUrl(String imageUrl) {
         this.imageUrl = imageUrl;
-    }
-
-    @Override
-    public String getHumanReadableIdentifier() {
-        return title;
     }
 
     public boolean hasChapters() {

@@ -1,7 +1,6 @@
 package de.danoeh.antennapod.model.playback;
 
 import android.content.Context;
-import android.content.SharedPreferences;
 import android.os.Parcel;
 import android.os.Parcelable;
 import android.text.TextUtils;
@@ -62,9 +61,9 @@ public class RemoteMedia implements Playable {
     }
 
     public RemoteMedia(FeedItem item) {
-        this.downloadUrl = item.getMedia().getDownload_url();
+        this.downloadUrl = item.getMedia().getDownloadUrl();
         this.itemIdentifier = item.getItemIdentifier();
-        this.feedUrl = item.getFeed().getDownload_url();
+        this.feedUrl = item.getFeed().getDownloadUrl();
         this.feedTitle = item.getFeed().getTitle();
         this.episodeTitle = item.getTitle();
         this.episodeLink = item.getLink();
@@ -75,7 +74,7 @@ public class RemoteMedia implements Playable {
             this.imageUrl = item.getFeed().getImageUrl();
         }
         this.feedLink = item.getFeed().getLink();
-        this.mimeType = item.getMedia().getMime_type();
+        this.mimeType = item.getMedia().getMimeType();
         this.pubDate = item.getPubDate();
         this.notes = item.getDescription();
     }
@@ -118,11 +117,6 @@ public class RemoteMedia implements Playable {
 
     public String getNotes() {
         return notes;
-    }
-
-    @Override
-    public void writeToPreferences(SharedPreferences.Editor prefEditor) {
-        //it seems pointless to do it, since the session should be kept by the remote device.
     }
 
     @Override
@@ -175,7 +169,7 @@ public class RemoteMedia implements Playable {
     }
 
     @Override
-    public String getLocalMediaUrl() {
+    public String getLocalFileUrl() {
         return null;
     }
 
@@ -300,7 +294,7 @@ public class RemoteMedia implements Playable {
                 return false;
             }
             Feed feed = fi.getFeed();
-            return feed != null && TextUtils.equals(feedUrl, feed.getDownload_url());
+            return feed != null && TextUtils.equals(feedUrl, feed.getDownloadUrl());
         }
         return false;
     }

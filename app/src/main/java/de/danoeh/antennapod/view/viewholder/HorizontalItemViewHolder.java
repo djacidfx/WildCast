@@ -13,8 +13,7 @@ import de.danoeh.antennapod.R;
 import de.danoeh.antennapod.activity.MainActivity;
 import de.danoeh.antennapod.adapter.CoverLoader;
 import de.danoeh.antennapod.adapter.actionbutton.ItemActionButton;
-import de.danoeh.antennapod.core.feed.util.ImageResourceUtils;
-import de.danoeh.antennapod.core.util.DateFormatter;
+import de.danoeh.antennapod.ui.common.DateFormatter;
 import de.danoeh.antennapod.core.util.PlaybackStatus;
 import de.danoeh.antennapod.event.playback.PlaybackPositionEvent;
 import de.danoeh.antennapod.model.feed.FeedItem;
@@ -23,6 +22,7 @@ import de.danoeh.antennapod.net.download.serviceinterface.DownloadServiceInterfa
 import de.danoeh.antennapod.ui.common.CircularProgressBar;
 import de.danoeh.antennapod.ui.common.SquareImageView;
 import de.danoeh.antennapod.ui.common.ThemeUtils;
+import de.danoeh.antennapod.ui.episodes.ImageResourceUtils;
 
 public class HorizontalItemViewHolder extends RecyclerView.ViewHolder {
     public final CardView card;
@@ -58,7 +58,7 @@ public class HorizontalItemViewHolder extends RecyclerView.ViewHolder {
         card.setAlpha(1.0f);
         float density = activity.getResources().getDisplayMetrics().density;
         card.setCardBackgroundColor(SurfaceColors.getColorForElevation(activity, 1 * density));
-        new CoverLoader(activity)
+        new CoverLoader()
                 .withUri(ImageResourceUtils.getEpisodeListImageLocation(item))
                 .withFallbackUri(item.getFeed().getImageUrl())
                 .withCoverView(cover)
@@ -85,11 +85,11 @@ public class HorizontalItemViewHolder extends RecyclerView.ViewHolder {
                 setProgressBar(false, 0);
             }
 
-            if (DownloadServiceInterface.get().isDownloadingEpisode(media.getDownload_url())) {
-                float percent = 0.01f * DownloadServiceInterface.get().getProgress(media.getDownload_url());
+            if (DownloadServiceInterface.get().isDownloadingEpisode(media.getDownloadUrl())) {
+                float percent = 0.01f * DownloadServiceInterface.get().getProgress(media.getDownloadUrl());
                 circularProgressBar.setPercentage(Math.max(percent, 0.01f), item);
                 circularProgressBar.setIndeterminate(
-                        DownloadServiceInterface.get().isEpisodeQueued(media.getDownload_url()));
+                        DownloadServiceInterface.get().isEpisodeQueued(media.getDownloadUrl()));
             } else if (media.isDownloaded()) {
                 circularProgressBar.setPercentage(1, item); // Do not animate 100% -> 0%
                 circularProgressBar.setIndeterminate(false);
@@ -102,7 +102,7 @@ public class HorizontalItemViewHolder extends RecyclerView.ViewHolder {
 
     public void bindDummy() {
         card.setAlpha(0.1f);
-        new CoverLoader(activity)
+        new CoverLoader()
                 .withResource(android.R.color.transparent)
                 .withCoverView(cover)
                 .load();
