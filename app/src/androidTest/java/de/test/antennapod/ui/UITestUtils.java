@@ -128,13 +128,14 @@ public class UITestUtils {
             // create items
             List<FeedItem> items = new ArrayList<>();
             for (int j = 0; j < NUM_ITEMS_PER_FEED; j++) {
-                FeedItem item = new FeedItem(j, "Feed " + (i+1) + ": Item " + (j+1), "item" + j,
+                FeedItem item = new FeedItem(0, "Feed " + (i+1) + ": Item " + (j+1), "item" + j,
                         "http://example.com/feed" + i + "/item/" + j, new Date(), FeedItem.UNPLAYED, feed);
                 items.add(item);
 
                 if (!hostTextOnlyFeeds) {
                     File mediaFile = newMediaFile("feed-" + i + "-episode-" + j + ".mp3");
-                    item.setMedia(new FeedMedia(j, item, 0, 0, mediaFile.length(), "audio/mp3", null, hostFile(mediaFile), false, null, 0, 0));
+                    item.setMedia(new FeedMedia(j, item, 0, 0, mediaFile.length(), "audio/mp3",
+                            null, hostFile(mediaFile), 0, null, 0, 0));
                 }
             }
             feed.setItems(items);
@@ -175,7 +176,7 @@ public class UITestUtils {
                         FeedMedia media = item.getMedia();
                         int fileId = Integer.parseInt(StringUtils.substringAfter(media.getDownloadUrl(), "files/"));
                         media.setLocalFileUrl(server.accessFile(fileId).getAbsolutePath());
-                        media.setDownloaded(true);
+                        media.setDownloaded(true, System.currentTimeMillis());
                     }
                 }
             }

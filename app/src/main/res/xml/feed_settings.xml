@@ -46,9 +46,9 @@
         android:icon="@drawable/ic_delete"
         android:key="autoDelete"
         android:summary="@string/global_default"
-        android:title="@string/auto_delete_label" />
+        android:title="@string/pref_auto_delete_playback_title" />
 
-    <de.danoeh.antennapod.preferences.VolumeAdaptationPreference
+    <de.danoeh.antennapod.ui.screen.feed.preferences.VolumeAdaptationPreference
         android:defaultValue="off"
         android:entries="@array/spnVolumeAdaptationItems"
         android:entryValues="@array/spnVolumeAdaptationValues"
@@ -68,9 +68,14 @@
     <PreferenceCategory
         android:key="autoDownloadCategory"
         android:title="@string/auto_download_settings_label">
-        <SwitchPreferenceCompat
+
+        <de.danoeh.antennapod.ui.preferences.preference.MaterialListPreference
+            android:entries="@array/spnEnableAutoDownloadItems"
+            android:entryValues="@array/spnEnableAutoDownloadValues"
+            android:icon="@drawable/ic_download"
             android:key="autoDownload"
             android:title="@string/auto_download_label" />
+
         <Preference
             android:key="episodeFilter"
             android:summary="@string/episode_filters_description"
