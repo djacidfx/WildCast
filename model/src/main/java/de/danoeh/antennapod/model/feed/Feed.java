@@ -1,12 +1,13 @@
 package de.danoeh.antennapod.model.feed;
 
-import android.text.TextUtils;
-
 import androidx.annotation.Nullable;
 
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
+import java.util.Objects;
+
+import org.apache.commons.lang3.StringUtils;
 
 /**
  * Data Object for a whole feed.
@@ -16,6 +17,8 @@ import java.util.List;
 public class Feed {
 
     public static final int FEEDFILETYPE_FEED = 0;
+    public static final int STATE_SUBSCRIBED = 0;
+    public static final int STATE_NOT_SUBSCRIBED = 1;
     public static final String TYPE_RSS2 = "rss";
     public static final String TYPE_ATOM1 = "atom";
     public static final String PREFIX_LOCAL_FOLDER = "antennapod_local:";
@@ -102,6 +105,7 @@ public class Feed {
      */
     @Nullable
     private SortOrder sortOrder;
+    private int state;
 
     /**
      * This constructor is used for restoring a feed from the database.
@@ -110,7 +114,7 @@ public class Feed {
                 String description, String paymentLinks, String author, String language,
                 String type, String feedIdentifier, String imageUrl, String fileUrl,
                 String downloadUrl, long lastRefreshAttempt, boolean paged, String nextPageLink,
-                String filter, @Nullable SortOrder sortOrder, boolean lastUpdateFailed) {
+                String filter, @Nullable SortOrder sortOrder, boolean lastUpdateFailed, int state) {
         this.localFileUrl = fileUrl;
         this.downloadUrl = downloadUrl;
         this.lastRefreshAttempt = lastRefreshAttempt;
@@ -136,6 +140,7 @@ public class Feed {
         }
         setSortOrder(sortOrder);
         this.lastUpdateFailed = lastUpdateFailed;
+        this.state = state;
     }
 
     /**
@@ -145,7 +150,7 @@ public class Feed {
                 String author, String language, String type, String feedIdentifier, String imageUrl, String fileUrl,
                 String downloadUrl, long lastRefreshAttempt) {
         this(id, lastModified, title, null, link, description, paymentLink, author, language, type, feedIdentifier,
-                imageUrl, fileUrl, downloadUrl, lastRefreshAttempt, false, null, null, null, false);
+                imageUrl, fileUrl, downloadUrl, lastRefreshAttempt, false, null, null, null, false, STATE_SUBSCRIBED);
     }
 
     /**
@@ -174,7 +179,7 @@ public class Feed {
      */
     public Feed(String url, String lastModified, String title, String username, String password) {
         this(url, lastModified, title);
-        preferences = new FeedPreferences(0, true, FeedPreferences.AutoDeleteAction.GLOBAL, VolumeAdaptionSetting.OFF,
+        preferences = new FeedPreferences(0, FeedPreferences.AutoDownloadSetting.GLOBAL, FeedPreferences.AutoDeleteAction.GLOBAL, VolumeAdaptionSetting.OFF,
             FeedPreferences.NewEpisodesAction.GLOBAL, username, password);
     }
 
@@ -205,9 +210,9 @@ public class Feed {
     }
 
     public String getHumanReadableIdentifier() {
-        if (!TextUtils.isEmpty(customTitle)) {
+        if (!StringUtils.isEmpty(customTitle)) {
             return customTitle;
-        } else if (!TextUtils.isEmpty(feedTitle)) {
+        } else if (!StringUtils.isEmpty(feedTitle)) {
             return feedTitle;
         } else {
             return downloadUrl;
@@ -266,7 +271,7 @@ public class Feed {
     }
 
     public String getTitle() {
-        return !TextUtils.isEmpty(customTitle) ? customTitle : feedTitle;
+        return !StringUtils.isEmpty(customTitle) ? customTitle : feedTitle;
     }
 
     public void setTitle(String title) {
@@ -468,5 +473,63 @@ public class Feed {
 
     public boolean isLocalFeed() {
         return downloadUrl.startsWith(PREFIX_LOCAL_FOLDER);
+    }
+
+    public int getState() {
+        return state;
+    }
+
+    public void setState(int state) {
+        this.state = state;
+    }
+
+    public boolean hasEpisodeInApp() {
+        if (items == null) {
+            return false;
+        }
+        for (FeedItem item : items) {
+            if (item.isTagged(FeedItem.TAG_FAVORITE)
+                    || item.isTagged(FeedItem.TAG_QUEUE)
+                    || item.isDownloaded()) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    public boolean hasInteractedWithEpisode() {
+        if (items == null) {
+            return false;
+        }
+        for (FeedItem item : items) {
+            if (item.isTagged(FeedItem.TAG_FAVORITE)
+                    || item.isTagged(FeedItem.TAG_QUEUE)
+                    || item.isDownloaded()
+                    || item.isPlayed()) {
+                return true;
+            }
+            if (item.getMedia() != null && item.getMedia().getPosition() > 0) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) {
+            return true;
+        }
+        if (o == null || getClass() != o.getClass()) {
+            return false;
+        }
+
+        Feed feed = (Feed) o;
+        return id == feed.id;
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(id);
     }
 }

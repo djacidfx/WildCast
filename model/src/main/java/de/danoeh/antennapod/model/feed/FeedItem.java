@@ -3,13 +3,13 @@ package de.danoeh.antennapod.model.feed;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 
-import org.apache.commons.lang3.builder.ToStringBuilder;
-import org.apache.commons.lang3.builder.ToStringStyle;
+import org.apache.commons.lang3.StringUtils;
 
 import java.io.Serializable;
 import java.util.Date;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Objects;
 import java.util.Set;
 
 /**
@@ -42,6 +42,11 @@ public class FeedItem implements Serializable {
     private transient Feed feed;
     private long feedId;
     private String podcastIndexChapterUrl;
+    private String socialInteractUrl;
+    private String podcastIndexTranscriptUrl;
+    private String podcastIndexTranscriptType;
+    private String podcastIndexTranscriptText;
+    private Transcript transcript;
 
     private int state;
     public static final int NEW = -1;
@@ -82,7 +87,8 @@ public class FeedItem implements Serializable {
      * */
     public FeedItem(long id, String title, String link, Date pubDate, String paymentLink, long feedId,
                     boolean hasChapters, String imageUrl, int state,
-                    String itemIdentifier, boolean autoDownloadEnabled, String podcastIndexChapterUrl) {
+                    String itemIdentifier, boolean autoDownloadEnabled, String podcastIndexChapterUrl,
+                    String transcriptType, String transcriptUrl, String socialInteractUrl) {
         this.id = id;
         this.title = title;
         this.link = link;
@@ -95,6 +101,11 @@ public class FeedItem implements Serializable {
         this.itemIdentifier = itemIdentifier;
         this.autoDownloadEnabled = autoDownloadEnabled;
         this.podcastIndexChapterUrl = podcastIndexChapterUrl;
+        this.socialInteractUrl = socialInteractUrl;
+        if (transcriptUrl != null) {
+            this.podcastIndexTranscriptUrl = transcriptUrl;
+            this.podcastIndexTranscriptType = transcriptType;
+        }
     }
 
     /**
@@ -161,6 +172,15 @@ public class FeedItem implements Serializable {
         if (other.podcastIndexChapterUrl != null) {
             podcastIndexChapterUrl = other.podcastIndexChapterUrl;
         }
+        if (other.socialInteractUrl != null) {
+            socialInteractUrl = other.socialInteractUrl;
+        }
+        if (other.getTranscriptUrl() != null) {
+            podcastIndexTranscriptUrl = other.podcastIndexTranscriptUrl;
+        }
+        if (other.getTranscriptType() != null) {
+            podcastIndexTranscriptType = other.podcastIndexTranscriptType;
+        }
     }
 
     public long getId() {
@@ -169,6 +189,9 @@ public class FeedItem implements Serializable {
 
     public void setId(long id) {
         this.id = id;
+        if (this.media != null) {
+            media.setItemId(id);
+        }
     }
 
     /**
@@ -203,6 +226,19 @@ public class FeedItem implements Serializable {
 
     public String getLink() {
         return link;
+    }
+
+    /**
+     * Get the link for the feed item for the purpose of Share.
+     * It falls backs to the feed's link if the item has no link.
+     */
+    public String getLinkWithFallback() {
+        if (StringUtils.isNotBlank(link)) {
+            return link;
+        } else if (StringUtils.isNotBlank(getFeed().getLink())) {
+            return getFeed().getLink();
+        }
+        return null;
     }
 
     public void setLink(String link) {
@@ -399,9 +435,93 @@ public class FeedItem implements Serializable {
         podcastIndexChapterUrl = url;
     }
 
+    public void setSocialInteractUrl(String url) {
+        socialInteractUrl = url;
+    }
+
+    public String getSocialInteractUrl() {
+        return socialInteractUrl;
+    }
+
+    public void setTranscriptUrl(String type, String url) {
+        updateTranscriptPreferredFormat(type, url);
+    }
+
+    public String getTranscriptUrl() {
+        return podcastIndexTranscriptUrl;
+    }
+
+    public String getTranscriptType() {
+        return podcastIndexTranscriptType;
+    }
+
+    public void updateTranscriptPreferredFormat(String type, String url) {
+        if (StringUtils.isEmpty(type) || StringUtils.isEmpty(url)) {
+            return;
+        }
+
+        String canonicalSrr = "application/srr";
+        String jsonType = "application/json";
+
+        switch (type) {
+            case "application/json":
+                podcastIndexTranscriptUrl = url;
+                podcastIndexTranscriptType = type;
+                break;
+            case "application/srr":
+            case "application/srt":
+            case "application/x-subrip":
+                if (podcastIndexTranscriptUrl == null || !podcastIndexTranscriptType.equals(jsonType)) {
+                    podcastIndexTranscriptUrl = url;
+                    podcastIndexTranscriptType = canonicalSrr;
+                }
+                break;
+            default:
+                break;
+        }
+    }
+
+    public Transcript getTranscript() {
+        return transcript;
+    }
+
+    public void setTranscript(Transcript t) {
+        transcript = t;
+    }
+
+    public String getPodcastIndexTranscriptText() {
+        return podcastIndexTranscriptText;
+    }
+
+    public String setPodcastIndexTranscriptText(String str) {
+        return podcastIndexTranscriptText = str;
+    }
+
+    public boolean hasTranscript() {
+        return (podcastIndexTranscriptUrl != null);
+    }
+
     @NonNull
     @Override
     public String toString() {
-        return ToStringBuilder.reflectionToString(this, ToStringStyle.SHORT_PREFIX_STYLE);
+        return "FeedItem [id=" + id + ", title=" + title + ", feedId=" + feedId + ", pubDate=" + pubDate + "]";
+    }
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) {
+            return true;
+        }
+        if (o == null || getClass() != o.getClass()) {
+            return false;
+        }
+
+        FeedItem feedItem = (FeedItem) o;
+        return id == feedItem.id;
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(id);
     }
 }

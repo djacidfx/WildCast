@@ -25,11 +25,11 @@ dependencies {
     implementation project(":ui:app-start-intent")
     implementation project(":ui:common")
     implementation project(":ui:episodes")
-    implementation project(':ui:glide')
     implementation project(':ui:i18n')
 
     annotationProcessor "androidx.annotation:annotation:$annotationVersion"
     implementation "androidx.appcompat:appcompat:$appcompatVersion"
     implementation "androidx.work:work-runtime:$workManagerVersion"
     implementation "com.github.bumptech.glide:glide:$glideVersion"
+    implementation "com.google.guava:guava:31.0.1-android"
 }

@@ -18,14 +18,14 @@ import androidx.test.espresso.util.HumanReadables;
 import androidx.test.espresso.util.TreeIterables;
 import android.view.View;
 
+import de.danoeh.antennapod.playback.service.PlaybackService;
 import de.danoeh.antennapod.storage.database.PodDBAdapter;
 import junit.framework.AssertionFailedError;
 
 import de.danoeh.antennapod.R;
 import de.danoeh.antennapod.activity.MainActivity;
 import de.danoeh.antennapod.storage.preferences.UserPreferences;
-import de.danoeh.antennapod.core.service.playback.PlaybackService;
-import de.danoeh.antennapod.fragment.NavDrawerFragment;
+import de.danoeh.antennapod.ui.screen.drawer.NavDrawerFragment;
 import org.awaitility.Awaitility;
 import org.awaitility.core.ConditionTimeoutException;
 import org.hamcrest.Matcher;
@@ -36,6 +36,7 @@ import java.util.concurrent.TimeoutException;
 
 import static androidx.test.espresso.Espresso.onView;
 import static androidx.test.espresso.action.ViewActions.click;
+import static androidx.test.espresso.assertion.ViewAssertions.doesNotExist;
 import static androidx.test.espresso.assertion.ViewAssertions.matches;
 import static androidx.test.espresso.matcher.ViewMatchers.hasDescendant;
 import static androidx.test.espresso.matcher.ViewMatchers.isDisplayed;
@@ -44,6 +45,7 @@ import static androidx.test.espresso.matcher.ViewMatchers.withContentDescription
 import static androidx.test.espresso.matcher.ViewMatchers.withId;
 import static androidx.test.espresso.matcher.ViewMatchers.withText;
 import static org.hamcrest.Matchers.allOf;
+import static org.hamcrest.Matchers.not;
 
 public class EspressoTestUtils {
     /**
@@ -143,6 +145,21 @@ public class EspressoTestUtils {
         };
     }
 
+    public static void waitForViewToDisappear(Matcher<? super View> matcher, long maxWaitingTimeMs) {
+        long endTime = System.currentTimeMillis() + maxWaitingTimeMs;
+        while (System.currentTimeMillis() <= endTime) {
+            try {
+                onView(allOf(matcher, isDisplayed())).check(matches(not(doesNotExist())));
+                Thread.sleep(100);
+            } catch (NoMatchingViewException ex) {
+                return; // view has disappeared
+            } catch (InterruptedException e) {
+                throw new RuntimeException(e);
+            }
+        }
+        throw new RuntimeException("timeout exceeded"); // or whatever exception you want
+    }
+    
     /**
      * Clear all app databases.
      */

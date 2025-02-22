@@ -1,6 +1,7 @@
 package de.danoeh.antennapod.ui.preferences.screen.downloads;
 
 import android.content.Context;
+import android.os.StatFs;
 import android.text.format.Formatter;
 import android.view.LayoutInflater;
 import android.view.View;
@@ -12,7 +13,6 @@ import androidx.annotation.NonNull;
 import androidx.core.util.Consumer;
 import androidx.recyclerview.widget.RecyclerView;
 import de.danoeh.antennapod.storage.preferences.UserPreferences;
-import de.danoeh.antennapod.core.util.StorageUtils;
 import de.danoeh.antennapod.ui.preferences.R;
 
 import java.io.File;
@@ -47,14 +47,14 @@ public class DataFolderAdapter extends RecyclerView.Adapter<DataFolderAdapter.Vi
         String freeSpace = Formatter.formatShortFileSize(context, storagePath.getAvailableSpace());
         String totalSpace = Formatter.formatShortFileSize(context, storagePath.getTotalSpace());
 
-        holder.path.setText(storagePath.getShortPath());
+        holder.path.setText(storagePath.getPath());
         holder.size.setText(String.format(freeSpaceString, freeSpace, totalSpace));
         holder.progressBar.setProgress(storagePath.getUsagePercentage());
-        View.OnClickListener selectListener = v -> selectionHandler.accept(storagePath.getFullPath());
+        View.OnClickListener selectListener = v -> selectionHandler.accept(storagePath.getPath());
         holder.root.setOnClickListener(selectListener);
         holder.radioButton.setOnClickListener(selectListener);
 
-        if (storagePath.getFullPath().equals(currentPath)) {
+        if (storagePath.getPath().equals(currentPath)) {
             holder.radioButton.toggle();
         }
     }
@@ -73,8 +73,10 @@ public class DataFolderAdapter extends RecyclerView.Adapter<DataFolderAdapter.Vi
     }
 
     private List<StoragePath> getStorageEntries(Context context) {
-        File[] mediaDirs = context.getExternalFilesDirs(null);
-        final List<StoragePath> entries = new ArrayList<>(mediaDirs.length);
+        final List<File> mediaDirs = new ArrayList<>();
+        mediaDirs.addAll(List.of(context.getExternalFilesDirs(null)));
+        mediaDirs.addAll(List.of(context.getExternalMediaDirs()));
+        final List<StoragePath> entries = new ArrayList<>(mediaDirs.size());
         for (File dir : mediaDirs) {
             if (!isWritable(dir)) {
                 continue;
@@ -115,21 +117,22 @@ public class DataFolderAdapter extends RecyclerView.Adapter<DataFolderAdapter.Vi
             this.path = path;
         }
 
-        String getShortPath() {
-            int prefixIndex = path.indexOf("Android");
-            return (prefixIndex > 0) ? path.substring(0, prefixIndex) : path;
-        }
-
-        String getFullPath() {
+        String getPath() {
             return this.path;
         }
 
         long getAvailableSpace() {
-            return StorageUtils.getFreeSpaceAvailable(path);
+            StatFs stat = new StatFs(path);
+            long availableBlocks = stat.getAvailableBlocksLong();
+            long blockSize = stat.getBlockSizeLong();
+            return availableBlocks * blockSize;
         }
 
         long getTotalSpace() {
-            return StorageUtils.getTotalSpaceAvailable(path);
+            StatFs stat = new StatFs(path);
+            long blockCount = stat.getBlockCountLong();
+            long blockSize = stat.getBlockSizeLong();
+            return blockCount * blockSize;
         }
 
         int getUsagePercentage() {
