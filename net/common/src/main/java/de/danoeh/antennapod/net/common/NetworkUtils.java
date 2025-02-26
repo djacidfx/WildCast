@@ -5,19 +5,14 @@ import android.net.ConnectivityManager;
 import android.net.Network;
 import android.net.NetworkCapabilities;
 import android.net.NetworkInfo;
-import android.net.wifi.WifiManager;
 import android.os.Build;
-import java.util.Arrays;
-import java.util.List;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 import de.danoeh.antennapod.storage.preferences.UserPreferences;
 
-public class NetworkUtils {
+public abstract class NetworkUtils {
     private static final String REGEX_PATTERN_IP_ADDRESS = "([0-9]{1,3}[\\.]){3}[0-9]{1,3}";
-
-    private NetworkUtils(){}
 
     private static Context context;
 
@@ -32,11 +27,7 @@ public class NetworkUtils {
             return false;
         }
         if (networkInfo.getType() == ConnectivityManager.TYPE_WIFI) {
-            if (UserPreferences.isEnableAutodownloadWifiFilter()) {
-                return isInAllowedWifiNetwork();
-            } else {
-                return !isNetworkMetered();
-            }
+            return !isNetworkMetered();
         } else if (networkInfo.getType() == ConnectivityManager.TYPE_ETHERNET) {
             return true;
         } else {
@@ -118,12 +109,6 @@ public class NetworkUtils {
             //noinspection deprecation
             return info.getType() == ConnectivityManager.TYPE_MOBILE;
         }
-    }
-
-    private static boolean isInAllowedWifiNetwork() {
-        WifiManager wm = (WifiManager) context.getApplicationContext().getSystemService(Context.WIFI_SERVICE);
-        List<String> selectedNetworks = Arrays.asList(UserPreferences.getAutodownloadSelectedNetworks());
-        return selectedNetworks.contains(Integer.toString(wm.getConnectionInfo().getNetworkId()));
     }
 
     public static boolean wasDownloadBlocked(Throwable throwable) {

@@ -5,6 +5,7 @@ import android.net.Uri;
 import android.os.Parcel;
 import android.os.Parcelable;
 import androidx.annotation.Nullable;
+
 import android.support.v4.media.MediaBrowserCompat;
 import android.support.v4.media.MediaDescriptionCompat;
 import de.danoeh.antennapod.model.MediaMetadataRetrieverCompat;
@@ -34,7 +35,7 @@ public class FeedMedia implements Playable {
     private long id;
     private String localFileUrl;
     private String downloadUrl;
-    private boolean downloaded;
+    private long downloadDate;
     private int duration;
     private int position; // Current position in file
     private long lastPlayedTime; // Last time this media was played (in ms)
@@ -56,21 +57,23 @@ public class FeedMedia implements Playable {
                      String mimeType) {
         this.localFileUrl = null;
         this.downloadUrl = downloadUrl;
-        this.downloaded = false;
+        this.downloadDate = 0;
         this.item = i;
+        this.itemID = i != null ? i.getId() : 0;
         this.size = size;
         this.mimeType = mimeType;
     }
 
     public FeedMedia(long id, FeedItem item, int duration, int position,
                      long size, String mimeType, String localFileUrl, String downloadUrl,
-                     boolean downloaded, Date playbackCompletionDate, int playedDuration,
+                     long downloadDate, Date playbackCompletionDate, int playedDuration,
                      long lastPlayedTime) {
         this.localFileUrl = localFileUrl;
         this.downloadUrl = downloadUrl;
-        this.downloaded = downloaded;
+        this.downloadDate = downloadDate;
         this.id = id;
         this.item = item;
+        this.itemID = item != null ? item.getId() : 0;
         this.duration = duration;
         this.position = position;
         this.playedDuration = playedDuration;
@@ -84,9 +87,9 @@ public class FeedMedia implements Playable {
 
     public FeedMedia(long id, FeedItem item, int duration, int position,
                      long size, String mimeType, String localFileUrl, String downloadUrl,
-                     boolean downloaded, Date playbackCompletionDate, int playedDuration,
+                     long downloadDate, Date playbackCompletionDate, int playedDuration,
                      Boolean hasEmbeddedPicture, long lastPlayedTime) {
-        this(id, item, duration, position, size, mimeType, localFileUrl, downloadUrl, downloaded,
+        this(id, item, duration, position, size, mimeType, localFileUrl, downloadUrl, downloadDate,
                 playbackCompletionDate, playedDuration, lastPlayedTime);
         this.hasEmbeddedPicture = hasEmbeddedPicture;
     }
@@ -251,6 +254,7 @@ public class FeedMedia implements Playable {
      */
     public void setItem(FeedItem item) {
         this.item = item;
+        this.itemID = item != null ? item.getId() : 0;
         if (item != null && item.getMedia() != this) {
             item.setMedia(this);
         }
@@ -293,7 +297,7 @@ public class FeedMedia implements Playable {
         dest.writeString(mimeType);
         dest.writeString(localFileUrl);
         dest.writeString(downloadUrl);
-        dest.writeByte((byte) ((downloaded) ? 1 : 0));
+        dest.writeLong(downloadDate);
         dest.writeLong((playbackCompletionDate != null) ? playbackCompletionDate.getTime() : 0);
         dest.writeInt(playedDuration);
         dest.writeLong(lastPlayedTime);
@@ -393,7 +397,7 @@ public class FeedMedia implements Playable {
     }
 
     public boolean isDownloaded() {
-        return downloaded;
+        return downloadDate > 0;
     }
 
     public long getItemId() {
@@ -441,7 +445,7 @@ public class FeedMedia implements Playable {
             final long id = in.readLong();
             final long itemID = in.readLong();
             FeedMedia result = new FeedMedia(id, null, in.readInt(), in.readInt(), in.readLong(), in.readString(), in.readString(),
-                    in.readString(), in.readByte() != 0, new Date(in.readLong()), in.readInt(), in.readLong());
+                    in.readString(), in.readLong(), new Date(in.readLong()), in.readInt(), in.readLong());
             result.itemID = itemID;
             return result;
         }
@@ -466,17 +470,21 @@ public class FeedMedia implements Playable {
         this.hasEmbeddedPicture = hasEmbeddedPicture;
     }
 
-    public void setDownloaded(boolean downloaded) {
-        this.downloaded = downloaded;
+    public void setDownloaded(boolean downloaded, long when) {
+        this.downloadDate = downloaded ? when : 0;
         if (item != null && downloaded && item.isNew()) {
             item.setPlayed(false);
         }
     }
 
+    public long getDownloadDate() {
+        return downloadDate;
+    }
+
     public void setLocalFileUrl(String fileUrl) {
         this.localFileUrl = fileUrl;
         if (fileUrl == null) {
-            downloaded = false;
+            downloadDate = 0;
         }
     }
 
@@ -501,12 +509,49 @@ public class FeedMedia implements Playable {
 
     @Override
     public boolean equals(Object o) {
+        if (this == o) {
+            return true;
+        }
         if (o == null) {
             return false;
         }
         if (o instanceof RemoteMedia) {
             return o.equals(this);
         }
-        return super.equals(o);
+
+        if (getClass() != o.getClass()) {
+            return false;
+        }
+
+        FeedMedia feedMedia = (FeedMedia) o;
+        return id == feedMedia.id;
+    }
+
+    public String getTranscriptFileUrl() {
+        if (getLocalFileUrl() == null) {
+            return null;
+        }
+        return getLocalFileUrl() + ".transcript";
+    }
+
+    public void setTranscript(Transcript t) {
+        if (item == null)  {
+            return;
+        }
+        item.setTranscript(t);
+    }
+
+    public Transcript getTranscript() {
+        if (item == null)  {
+            return null;
+        }
+        return item.getTranscript();
+    }
+
+    public Boolean hasTranscript() {
+        if (item == null)  {
+            return false;
+        }
+        return item.hasTranscript();
     }
 }

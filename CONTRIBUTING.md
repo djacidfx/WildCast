@@ -29,7 +29,7 @@ If you would like to translate the app into another language or improve an exist
 Submit a pull request
 ---------------------
 - Before you work on the code
-  - Make sure that there is an issue *without* the `Needs: Triage` or `Needs: Decision` label for the feature you want to implement or bug you want to fix.
+  - Make sure that there is an issue *without* the `Needs: Triage` or `Needs: Decision` label for the feature you want to implement or bug you want to fix. If you just start working on a feature that is not approved yet (or not even has an issue), your PR might not get merged.
   - Add a comment to the issue so that other people know that you are working on it.
     - You don't need to ask for permission to work on something, just indicate that you are doing so.
   - If you want to discuss the approach to take, feel free to ask in the issue or join a [community call](https://antennapod.org/events/community-meeting).
@@ -41,7 +41,8 @@ Submit a pull request
 - Get coding :)
   - If possible, add unit tests for your pull request and make sure that they pass.
   - Please do not upgrade dependencies or build tools unless you have a good reason for it. Doing so can easily introduce bugs that are hard to track down.
-  - Please follow our code style. You can use Checkstyle within Android Studio using our [configuration file](https://github.com/AntennaPod/AntennaPod/blob/develop/config/checkstyle/checkstyle-new-code.xml).
+  - Please follow our code style. You can use Checkstyle within Android Studio using our [configuration file](https://github.com/AntennaPod/AntennaPod/blob/develop/config/checkstyle/checkstyle.xml).
+  - To check the code style locally, run `./gradlew checkstyle spotbugsPlayDebug spotbugsDebug :app:lintPlayDebug`
   - Please only change the English string resources. Translations are handled on [Transifex](https://www.transifex.com/antennapod/antennapod/).
 - Open the PR
   - Mention the corresponding issue in the pull request text, so that it can be closed once your pull request has been merged. If you use [special keywords](https://docs.github.com/en/issues/tracking-your-work-with-issues/linking-a-pull-request-to-an-issue), GitHub will close the issue(s) automatically.
